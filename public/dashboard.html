@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SmartAttend — Dashboard</title>
 <link rel="stylesheet" href="/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
   <div class="topbar">
@@ -68,6 +69,19 @@
         <thead><tr><th>Student</th><th>Reason</th><th>Detail</th><th>Action</th></tr></thead>
         <tbody></tbody>
       </table>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Reports</div>
+      <h2>Attendance analytics</h2>
+      <label>Course</label>
+      <select id="reportCourse"></select>
+      <button class="secondary" id="loadReportBtn" style="margin-top:8px;">Load report</button>
+      <div style="margin-top:16px;"><canvas id="attendanceChart" height="100"></canvas></div>
+      <div style="margin-top:14px;">
+        <a id="csvLink" class="secondary" style="text-decoration:none; display:inline-block; padding:9px 16px; border:1px solid var(--border); border-radius:8px; color:var(--navy-950); margin-right:8px;" href="#" target="_blank">Download CSV</a>
+        <a id="pdfLink" class="secondary" style="text-decoration:none; display:inline-block; padding:9px 16px; border:1px solid var(--border); border-radius:8px; color:var(--navy-950);" href="#" target="_blank">Download PDF</a>
+      </div>
     </div>
   </div>
 
@@ -171,6 +185,58 @@
       await api(`/sessions/flags/${flagId}/resolve`, { method: 'PATCH', body: { resolution } });
       loadDashboard(sessionId);
     } catch (err) { alert(err.data?.error || 'Could not resolve flag.'); }
+  }
+
+  // --- Reports section ---
+  let attendanceChart = null;
+
+  async function loadReportCourses() {
+    const courses = await api('/users/courses');
+    document.getElementById('reportCourse').innerHTML =
+      courses.map(c => `<option value="${c.id}">${c.code} — ${c.title}</option>`).join('');
+  }
+  loadReportCourses();
+
+  document.getElementById('loadReportBtn').addEventListener('click', async () => {
+    const courseId = document.getElementById('reportCourse').value;
+    if (!courseId) return;
+    try {
+      const rows = await api(`/reports/courses/${courseId}/attendance`);
+      const ctx = document.getElementById('attendanceChart');
+      const labels = rows.map(r => r.full_name);
+      const attended = rows.map(r => r.attended || 0);
+      const flagged = rows.map(r => r.flagged || 0);
+      if (attendanceChart) attendanceChart.destroy();
+      attendanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Attended', data: attended, backgroundColor: '#0F9D8C' },
+            { label: 'Flagged', data: flagged, backgroundColor: '#E3A008' },
+          ],
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+      });
+
+      // Downloads need the Authorization header, so plain <a href> won't
+      // work — fetch as a blob and trigger the download manually.
+      setupDownload('csvLink', `/reports/courses/${courseId}/attendance.csv`, `attendance-${courseId}.csv`);
+      setupDownload('pdfLink', `/reports/courses/${courseId}/attendance.pdf`, `attendance-${courseId}.pdf`);
+    } catch (err) { alert(err.data?.error || 'Could not load report.'); }
+  });
+
+  function setupDownload(linkId, path, filename) {
+    const link = document.getElementById(linkId);
+    link.onclick = async (e) => {
+      e.preventDefault();
+      const res = await fetch('/api' + path, { headers: { Authorization: `Bearer ${getToken()}` } });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    };
   }
 </script>
 </body>
