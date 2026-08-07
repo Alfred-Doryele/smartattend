@@ -1,0 +1,129 @@
+/* SmartAttend — visual identity
+   Palette: deep campus navy + warm signal-amber (flags/alerts) + teal (confirmed/success)
+   Type: system sans for UI density, one confident display weight for headings */
+
+:root {
+  --navy-950: #0E1A30;
+  --navy-900: #142544;
+  --navy-800: #1D3461;
+  --navy-100: #E7ECF6;
+  --teal-600: #0F9D8C;
+  --teal-100: #DFF6F2;
+  --amber-500: #E3A008;
+  --amber-100: #FDF1D6;
+  --red-500: #D64545;
+  --red-100: #FBE4E4;
+  --ink: #1A2233;
+  --muted: #6B7385;
+  --paper: #F6F7FB;
+  --card: #FFFFFF;
+  --border: #E3E6EF;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(14,26,48,0.06), 0 8px 24px rgba(14,26,48,0.06);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+h1, h2, h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: -0.01em;
+  margin: 0 0 .4em 0;
+}
+
+a { color: var(--teal-600); }
+
+.topbar {
+  background: var(--navy-950);
+  color: var(--navy-100);
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.topbar .brand {
+  font-family: Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.topbar .brand .dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--teal-600);
+  box-shadow: 0 0 0 4px rgba(15,157,140,0.25);
+}
+.topbar .who { font-size: .85rem; color: #AEB8D0; }
+.topbar button.logout {
+  background: transparent; border: 1px solid #33436B; color: var(--navy-100);
+  padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: .85rem;
+}
+.topbar button.logout:hover { background: var(--navy-800); }
+
+.shell { max-width: 980px; margin: 0 auto; padding: 32px 20px 80px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } }
+
+label { display: block; font-size: .82rem; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+input, select {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: .95rem; background: #fff; color: var(--ink);
+}
+input:focus, select:focus { outline: 2px solid var(--teal-600); outline-offset: 1px; border-color: var(--teal-600); }
+
+button.primary {
+  background: var(--navy-950); color: #fff; border: none;
+  padding: 11px 20px; border-radius: 8px; font-size: .95rem; font-weight: 600;
+  cursor: pointer; margin-top: 18px;
+}
+button.primary:hover { background: var(--navy-800); }
+button.secondary {
+  background: #fff; color: var(--navy-950); border: 1px solid var(--border);
+  padding: 9px 16px; border-radius: 8px; font-size: .88rem; cursor: pointer;
+}
+button.secondary:hover { border-color: var(--navy-800); }
+
+.status-pill {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  font-size: .75rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+}
+.status-accepted { background: var(--teal-100); color: var(--teal-600); }
+.status-flagged { background: var(--amber-100); color: #8A6300; }
+.status-rejected { background: var(--red-100); color: var(--red-500); }
+.status-pending { background: var(--navy-100); color: var(--navy-800); }
+
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; }
+
+.helper { color: var(--muted); font-size: .85rem; margin-top: 4px; }
+.error-box { background: var(--red-100); color: #8A2323; padding: 10px 14px; border-radius: 8px; font-size: .88rem; margin-top: 12px; }
+.success-box { background: var(--teal-100); color: #0B6B5F; padding: 10px 14px; border-radius: 8px; font-size: .88rem; margin-top: 12px; }
+
+.face-frame {
+  width: 220px; height: 220px; border-radius: 12px; border: 2px dashed var(--border);
+  display: flex; align-items: center; justify-content: center; background: #FAFBFD;
+  color: var(--muted); font-size: .85rem; margin: 8px 0; overflow: hidden;
+}
+.face-frame video, .face-frame canvas, .face-frame img { width: 100%; height: 100%; object-fit: cover; }
+
+.eyebrow { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--teal-600); font-weight: 700; margin-bottom: 6px; }

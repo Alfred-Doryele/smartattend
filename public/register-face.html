@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartAttend — Capture your face reference</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> SmartAttend</div>
+    <button class="logout" id="logoutBtn">Log out</button>
+  </div>
+
+  <div class="shell" style="max-width:520px;">
+    <div class="card">
+      <div class="eyebrow">One-time setup</div>
+      <h2>Capture your facial reference</h2>
+      <p class="helper">This is what your check-ins will be compared against. Use good lighting and look straight at the camera.</p>
+
+      <div class="face-frame" id="frame">
+        <video id="video" autoplay playsinline></video>
+      </div>
+      <canvas id="canvas" width="220" height="220" style="display:none;"></canvas>
+
+      <button class="secondary" id="captureBtn">Capture photo</button>
+      <button class="primary" id="saveBtn" style="display:none;">Save reference & continue</button>
+      <div class="success-box" id="successBox" style="display:none;">Saved. Redirecting to check-in...</div>
+      <div class="error-box" id="errorBox" style="display:none;"></div>
+    </div>
+  </div>
+
+<script src="/js/api.js"></script>
+<script>
+  requireAuth(['student']);
+  wireLogout('logoutBtn');
+
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  let capturedDataUrl = null;
+
+  navigator.mediaDevices?.getUserMedia({ video: true }).then(stream => {
+    video.srcObject = stream;
+  }).catch(() => {
+    document.getElementById('frame').innerHTML = '<span style="padding:16px;text-align:center;">No camera detected. In demo mode, capture will still work with a placeholder image.</span>';
+  });
+
+  document.getElementById('captureBtn').addEventListener('click', () => {
+    const ctx = canvas.getContext('2d');
+    if (video.srcObject) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    } else {
+      // Demo fallback when no camera is available in this environment
+      ctx.fillStyle = '#1D3461';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#fff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Demo capture', 60, 110);
+    }
+    capturedDataUrl = canvas.toDataURL('image/png');
+    document.getElementById('frame').innerHTML = '';
+    document.getElementById('frame').appendChild(canvas);
+    canvas.style.display = 'block';
+    document.getElementById('saveBtn').style.display = 'inline-block';
+  });
+
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    const errBox = document.getElementById('errorBox');
+    errBox.style.display = 'none';
+    try {
+      const descriptor = demoDescriptorFromImageData(capturedDataUrl);
+      await api('/auth/me/face', { method: 'PATCH', body: { faceDescriptor: descriptor } });
+      document.getElementById('successBox').style.display = 'block';
+      setTimeout(() => window.location.href = '/checkin.html', 1200);
+    } catch (err) {
+      errBox.textContent = err.data?.error || 'Could not save reference.';
+      errBox.style.display = 'block';
+    }
+  });
+</script>
+</body>
+</html>

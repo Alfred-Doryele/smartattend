@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartAttend — Sign in</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> SmartAttend</div>
+    <div class="who">Facial-recognition attendance, verified by location</div>
+  </div>
+
+  <div class="shell" style="max-width:460px;">
+    <div class="card">
+      <div class="eyebrow" id="formEyebrow">Sign in</div>
+      <h2 id="formTitle">Welcome back</h2>
+
+      <form id="loginForm">
+        <label>Email</label>
+        <input type="email" id="loginEmail" required placeholder="you@uenr.edu.gh">
+        <label>Password</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••">
+        <button class="primary" type="submit">Sign in</button>
+        <div class="error-box" id="loginError" style="display:none;"></div>
+      </form>
+
+      <p class="helper" style="margin-top:18px;">No account yet? <a href="#" id="showRegister">Register here</a></p>
+    </div>
+
+    <div class="card" id="registerCard" style="display:none;">
+      <div class="eyebrow">Register</div>
+      <h2>Create your account</h2>
+      <form id="registerForm">
+        <label>Full name</label>
+        <input type="text" id="regName" required>
+        <label>Role</label>
+        <select id="regRole">
+          <option value="student">Student</option>
+          <option value="lecturer">Lecturer</option>
+          <option value="admin">Administrator</option>
+        </select>
+        <label>Index / Staff number <span style="font-weight:400;">(students)</span></label>
+        <input type="text" id="regIndex" placeholder="e.g. UENR/CE/21/001">
+        <label>Email</label>
+        <input type="email" id="regEmail" required>
+        <label>Password</label>
+        <input type="password" id="regPassword" required minlength="6">
+        <button class="primary" type="submit">Create account</button>
+        <p class="helper">Students: you'll capture your facial reference right after registering — this becomes what future check-ins are matched against.</p>
+        <div class="error-box" id="registerError" style="display:none;"></div>
+      </form>
+    </div>
+  </div>
+
+<script src="/js/api.js"></script>
+<script>
+  document.getElementById('showRegister').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('registerCard').style.display = 'block';
+  });
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const errBox = document.getElementById('loginError');
+    errBox.style.display = 'none';
+    try {
+      const data = await api('/auth/login', { method: 'POST', body: { email, password } });
+      setSession(data.token, data.user);
+      if (data.user.role === 'student') window.location.href = '/checkin.html';
+      else window.location.href = '/dashboard.html';
+    } catch (err) {
+      errBox.textContent = err.data?.error || 'Sign in failed.';
+      errBox.style.display = 'block';
+    }
+  });
+
+  document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fullName = document.getElementById('regName').value;
+    const role = document.getElementById('regRole').value;
+    const indexNumber = document.getElementById('regIndex').value;
+    const email = document.getElementById('regEmail').value;
+    const password = document.getElementById('regPassword').value;
+    const errBox = document.getElementById('registerError');
+    errBox.style.display = 'none';
+    try {
+      // NOTE: face capture happens on first check-in for simplicity in this
+      // scaffold. A production build would capture it here at registration.
+      await api('/auth/register', { method: 'POST', body: { fullName, role, indexNumber, email, password } });
+      const data = await api('/auth/login', { method: 'POST', body: { email, password } });
+      setSession(data.token, data.user);
+      if (data.user.role === 'student') window.location.href = '/register-face.html';
+      else window.location.href = '/dashboard.html';
+    } catch (err) {
+      errBox.textContent = err.data?.error || 'Registration failed.';
+      errBox.style.display = 'block';
+    }
+  });
+</script>
+</body>
+</html>

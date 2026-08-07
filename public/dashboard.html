@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartAttend — Dashboard</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> SmartAttend</div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="who" id="whoami"></span>
+      <button class="logout" id="logoutBtn">Log out</button>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="grid-2">
+      <div class="card">
+        <div class="eyebrow">Step 1</div>
+        <h2>Create a course</h2>
+        <form id="courseForm">
+          <label>Course code</label>
+          <input type="text" id="courseCode" placeholder="CENG 302" required>
+          <label>Course title</label>
+          <input type="text" id="courseTitle" placeholder="Information Theory" required>
+          <button class="primary" type="submit">Create course</button>
+        </form>
+        <div class="success-box" id="courseSuccess" style="display:none;"></div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow">Step 2</div>
+        <h2>Open a session</h2>
+        <form id="sessionForm">
+          <label>Course</label>
+          <select id="sessionCourse" required></select>
+          <label>Use my current location as the venue</label>
+          <p class="helper">This snapshot becomes the reference point student check-ins are geofenced against.</p>
+          <button class="secondary" type="button" id="grabLocation">Capture my location</button>
+          <span class="helper" id="locResult"></span>
+          <label>Duration (minutes)</label>
+          <input type="number" id="sessionDuration" value="60">
+          <label>Re-verify students after (minutes)</label>
+          <input type="number" id="sessionReverify" value="30">
+          <button class="primary" type="submit">Open session</button>
+        </form>
+        <div class="success-box" id="sessionSuccess" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Live monitoring</div>
+      <h2>Session dashboard</h2>
+      <label>Session ID</label>
+      <input type="text" id="dashSessionId" placeholder="Paste a session ID, or create one above">
+      <button class="secondary" id="loadDashBtn" style="margin-top:8px;">Load</button>
+
+      <h3 style="margin-top:24px;">Check-ins</h3>
+      <table id="checkinsTable">
+        <thead><tr><th>Student</th><th>Time</th><th>Face score</th><th>Distance (m)</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <h3 style="margin-top:24px;">Flagged for review</h3>
+      <table id="flagsTable">
+        <thead><tr><th>Student</th><th>Reason</th><th>Detail</th><th>Action</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+<script src="/js/api.js"></script>
+<script>
+  const user = requireAuth(['lecturer', 'admin']);
+  wireLogout('logoutBtn');
+  document.getElementById('whoami').textContent = `${user.fullName} · ${user.role}`;
+
+  let capturedLoc = null;
+
+  async function loadCourses() {
+    const courses = await api('/users/courses');
+    const select = document.getElementById('sessionCourse');
+    select.innerHTML = courses.map(c => `<option value="${c.id}">${c.code} — ${c.title}</option>`).join('');
+  }
+  loadCourses();
+
+  document.getElementById('courseForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = document.getElementById('courseCode').value;
+    const title = document.getElementById('courseTitle').value;
+    try {
+      await api('/users/courses', { method: 'POST', body: { code, title, lecturerId: user.id } });
+      document.getElementById('courseSuccess').style.display = 'block';
+      document.getElementById('courseSuccess').textContent = `Course "${code}" created.`;
+      loadCourses();
+    } catch (err) { alert(err.data?.error || 'Failed to create course.'); }
+  });
+
+  document.getElementById('grabLocation').addEventListener('click', async () => {
+    const loc = await getGeolocation();
+    if (!loc) { document.getElementById('locResult').textContent = 'Could not get location.'; return; }
+    capturedLoc = loc;
+    document.getElementById('locResult').textContent = `Captured: ${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)}`;
+  });
+
+  document.getElementById('sessionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!capturedLoc) { alert('Capture your location first — this sets the venue for geofencing.'); return; }
+    const courseId = document.getElementById('sessionCourse').value;
+    const durationMinutes = Number(document.getElementById('sessionDuration').value);
+    const reverifyAfterMinutes = Number(document.getElementById('sessionReverify').value);
+    try {
+      const data = await api('/sessions', {
+        method: 'POST',
+        body: {
+          courseId,
+          latitude: capturedLoc.latitude,
+          longitude: capturedLoc.longitude,
+          startTime: new Date().toISOString(),
+          durationMinutes,
+          reverifyAfterMinutes,
+        },
+      });
+      const box = document.getElementById('sessionSuccess');
+      box.style.display = 'block';
+      box.innerHTML = `Session open. Share this ID with students: <strong>${data.id}</strong>`;
+      document.getElementById('dashSessionId').value = data.id;
+      loadDashboard(data.id);
+    } catch (err) { alert(err.data?.error || 'Failed to open session.'); }
+  });
+
+  document.getElementById('loadDashBtn').addEventListener('click', () => {
+    const id = document.getElementById('dashSessionId').value;
+    if (id) loadDashboard(id);
+  });
+
+  async function loadDashboard(sessionId) {
+    try {
+      const data = await api(`/sessions/${sessionId}/dashboard`);
+      const cBody = document.querySelector('#checkinsTable tbody');
+      cBody.innerHTML = data.checkins.map(c => `
+        <tr>
+          <td>${c.full_name} (${c.index_number || '—'})</td>
+          <td>${new Date(c.checked_in_at).toLocaleTimeString()}</td>
+          <td>${c.face_match_score?.toFixed(3) ?? '—'}</td>
+          <td>${c.distance_from_venue_meters ? Math.round(c.distance_from_venue_meters) : '—'}</td>
+          <td><span class="status-pill status-${c.status}">${c.status}</span></td>
+        </tr>
+      `).join('') || '<tr><td colspan="5" class="helper">No check-ins yet.</td></tr>';
+
+      const fBody = document.querySelector('#flagsTable tbody');
+      const unresolved = data.flags.filter(f => !f.resolved);
+      fBody.innerHTML = unresolved.map(f => `
+        <tr>
+          <td>${f.full_name}</td>
+          <td>${f.reason}</td>
+          <td>${f.detail || ''}</td>
+          <td>
+            <button class="secondary" onclick="resolveFlag('${f.id}','confirmed_present','${sessionId}')">Confirm present</button>
+            <button class="secondary" onclick="resolveFlag('${f.id}','marked_absent','${sessionId}')">Mark absent</button>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="4" class="helper">No flags right now.</td></tr>';
+    } catch (err) { alert(err.data?.error || 'Could not load dashboard.'); }
+  }
+
+  async function resolveFlag(flagId, resolution, sessionId) {
+    try {
+      await api(`/sessions/flags/${flagId}/resolve`, { method: 'PATCH', body: { resolution } });
+      loadDashboard(sessionId);
+    } catch (err) { alert(err.data?.error || 'Could not resolve flag.'); }
+  }
+</script>
+</body>
+</html>
