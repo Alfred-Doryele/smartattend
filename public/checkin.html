@@ -79,21 +79,22 @@
   });
 
   async function loadSessions() {
-    // In this scaffold, sessions are listed via the course roster the
-    // student is enrolled in — simplified here to a manual session-id entry
-    // for demo purposes; wire this to a real "my open sessions" endpoint
-    // as your Developer — Registration & Scheduling module matures.
     const select = document.getElementById('sessionSelect');
-    select.innerHTML = '<option value="">Paste session ID (from your lecturer)…</option>';
-    const opt = document.createElement('option');
-    const custom = prompt('Enter the session ID your lecturer shared (demo input):');
-    if (custom) {
-      const o = document.createElement('option');
-      o.value = custom; o.textContent = custom; o.selected = true;
-      select.appendChild(o);
+    try {
+      const sessions = await api('/sessions/mine/open');
+      if (!sessions.length) {
+        select.innerHTML = '<option value="">No open sessions right now</option>';
+        return;
+      }
+      select.innerHTML = sessions.map(s =>
+        `<option value="${s.id}">${s.code} — ${s.title} (${new Date(s.start_time).toLocaleTimeString()})</option>`
+      ).join('');
+    } catch (err) {
+      select.innerHTML = '<option value="">Could not load sessions</option>';
     }
   }
   loadSessions();
+  document.getElementById('sessionSelect').addEventListener('focus', loadSessions);
 
   document.getElementById('submitBtn').addEventListener('click', async () => {
     const sessionId = document.getElementById('sessionSelect').value;
