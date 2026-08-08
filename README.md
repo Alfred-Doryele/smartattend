@@ -51,10 +51,11 @@ for the reasoning behind the anomaly-detection design.
 ## Getting started
 
 ```bash
-git clone <https://github.com/Alfred-Doryele/smartattend>
+git clone https://github.com/Alfred-Doryele/smartattend.git
 cd smartattend
+node --version
 npm install
-cp .env.example .env
+copy .env.example .env
 npm start
 ```
 
