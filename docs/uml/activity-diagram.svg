@@ -1,0 +1,117 @@
+<svg viewBox="0 0 700 1150" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+  <rect width="700" height="1150" fill="#FFFFFF"/>
+  <text x="350" y="32" fill="#1A2233" font-size="18" font-weight="bold" text-anchor="middle">SmartAttend — Activity Diagram: Student Check-In</text>
+
+  <!-- Start -->
+  <circle cx="350" cy="70" r="12" fill="#0E1A30"/>
+  <line x1="350" y1="82" x2="350" y2="110" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Open session -->
+  <rect x="240" y="110" width="220" height="40" rx="18" fill="#DFF6F2" stroke="#0F9D8C"/>
+  <text x="350" y="135" font-size="11" text-anchor="middle">Student selects active session</text>
+  <line x1="350" y1="150" x2="350" y2="178" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Capture face + location (parallel) -->
+  <line x1="180" y1="178" x2="520" y2="178" stroke="#333" stroke-width="1.5"/>
+  <line x1="180" y1="178" x2="180" y2="208" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="520" y1="178" x2="520" y2="208" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="140" y="174" width="80" height="8" fill="#1D3461"/>
+
+  <rect x="80" y="208" width="200" height="40" rx="18" fill="#DFF6F2" stroke="#0F9D8C"/>
+  <text x="180" y="233" font-size="11" text-anchor="middle">Capture live face (camera)</text>
+
+  <rect x="420" y="208" width="200" height="40" rx="18" fill="#DFF6F2" stroke="#0F9D8C"/>
+  <text x="520" y="233" font-size="11" text-anchor="middle">Capture device GPS location</text>
+
+  <line x1="180" y1="248" x2="180" y2="278" stroke="#333" stroke-width="1.5"/>
+  <line x1="520" y1="248" x2="520" y2="278" stroke="#333" stroke-width="1.5"/>
+  <line x1="180" y1="278" x2="520" y2="278" stroke="#333" stroke-width="1.5"/>
+  <rect x="140" y="274" width="80" height="8" fill="#1D3461"/>
+  <line x1="350" y1="282" x2="350" y2="310" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Submit -->
+  <rect x="240" y="310" width="220" height="40" rx="18" fill="#DFF6F2" stroke="#0F9D8C"/>
+  <text x="350" y="335" font-size="11" text-anchor="middle">Submit check-in to server</text>
+  <line x1="350" y1="350" x2="350" y2="380" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Decision: face match -->
+  <polygon points="350,380 420,420 350,460 280,420" fill="#FDF1D6" stroke="#E3A008" stroke-width="1.5"/>
+  <text x="350" y="424" font-size="10" text-anchor="middle">Face matches?</text>
+
+  <line x1="280" y1="420" x2="150" y2="420" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="215" y="412" font-size="9">No</text>
+  <rect x="30" y="400" width="180" height="40" rx="18" fill="#FBE4E4" stroke="#D64545"/>
+  <text x="120" y="425" font-size="10" text-anchor="middle">Reject — offer retry</text>
+  <line x1="120" y1="440" x2="120" y2="1060" stroke="#333" stroke-width="1.5" stroke-dasharray="3 2"/>
+
+  <line x1="350" y1="460" x2="350" y2="490" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="360" y="480" font-size="9">Yes</text>
+
+  <!-- Decision: location verified -->
+  <polygon points="350,490 430,535 350,580 270,535" fill="#FDF1D6" stroke="#E3A008" stroke-width="1.5"/>
+  <text x="350" y="530" font-size="10" text-anchor="middle">Within venue</text>
+  <text x="350" y="543" font-size="10" text-anchor="middle">radius?</text>
+
+  <line x1="430" y1="535" x2="620" y2="535" stroke="#333" stroke-width="1.5"/>
+  <text x="480" y="527" font-size="9">No</text>
+
+  <line x1="350" y1="580" x2="350" y2="610" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="360" y="600" font-size="9">Yes</text>
+
+  <!-- Decision: duplicate face / low confidence -->
+  <polygon points="350,610 450,655 350,700 250,655" fill="#FDF1D6" stroke="#E3A008" stroke-width="1.5"/>
+  <text x="350" y="650" font-size="9" text-anchor="middle">Duplicate face or</text>
+  <text x="350" y="663" font-size="9" text-anchor="middle">low-confidence match?</text>
+
+  <line x1="450" y1="655" x2="618" y2="655" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="490" y="647" font-size="9">Yes</text>
+
+  <line x1="350" y1="700" x2="350" y2="730" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="360" y="720" font-size="9">No</text>
+
+  <!-- Accept -->
+  <rect x="240" y="730" width="220" height="40" rx="18" fill="#DFF6F2" stroke="#0F9D8C"/>
+  <text x="350" y="755" font-size="11" text-anchor="middle">Record check-in as ACCEPTED</text>
+
+  <!-- Flag branch merges here -->
+  <rect x="560" y="600" width="120" height="90" rx="6" fill="#FDF1D6" stroke="#E3A008"/>
+  <text x="620" y="625" font-size="9" text-anchor="middle">Record check-in</text>
+  <text x="620" y="638" font-size="9" text-anchor="middle">as FLAGGED +</text>
+  <text x="620" y="651" font-size="9" text-anchor="middle">create anomaly_flag</text>
+  <text x="620" y="664" font-size="9" text-anchor="middle">(reason logged)</text>
+
+  <line x1="620" y1="535" x2="620" y2="600" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <line x1="620" y1="690" x2="620" y2="800" stroke="#333" stroke-width="1.5"/>
+  <line x1="620" y1="800" x2="450" y2="850" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Lecturer review -->
+  <rect x="240" y="850" width="220" height="50" rx="18" fill="#E7ECF6" stroke="#1D3461"/>
+  <text x="350" y="871" font-size="10" text-anchor="middle">Lecturer reviews flag on</text>
+  <text x="350" y="885" font-size="10" text-anchor="middle">dashboard, makes final call</text>
+
+  <line x1="350" y1="770" x2="350" y2="900" stroke="#333" stroke-width="0"/>
+  <line x1="350" y1="770" x2="350" y2="1060" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="350" y1="900" x2="350" y2="1000" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="230" y="1000" width="240" height="40" rx="18" fill="#E7ECF6" stroke="#1D3461"/>
+  <text x="350" y="1024" font-size="10" text-anchor="middle">Confirm present / mark absent</text>
+
+  <line x1="230" y1="1020" x2="120" y2="1020" stroke="#333" stroke-width="1.5" stroke-dasharray="3 2"/>
+
+  <line x1="350" y1="1040" x2="350" y2="1070" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="120" y1="1060" x2="120" y2="1085" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="120" y1="1085" x2="335" y2="1085" stroke="#333" stroke-width="1.5"/>
+
+  <!-- End -->
+  <circle cx="350" cy="1100" r="12" fill="none" stroke="#0E1A30" stroke-width="2"/>
+  <circle cx="350" cy="1100" r="6" fill="#0E1A30"/>
+
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#333"/>
+    </marker>
+  </defs>
+
+  <text x="350" y="1135" fill="#AEB4C4" font-size="10" text-anchor="middle">Dashed line = the "rejected, retry" path re-joining at End. Corresponds to src/routes/checkins.js.</text>
+</svg>
