@@ -98,23 +98,33 @@
   document.getElementById('submitBtn').addEventListener('click', async () => {
     const sessionId = document.getElementById('sessionSelect').value;
     const resultBox = document.getElementById('resultBox');
-    resultBox.style.display = 'block';
+    const submitBtn = document.getElementById('submitBtn');
     if (!sessionId) {
+      resultBox.style.display = 'block';
       resultBox.className = 'error-box';
       resultBox.textContent = 'Please select or enter a session ID.';
       return;
     }
+    const originalLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="btn-spinner"></span> Verifying…';
+    resultBox.style.display = 'none';
     try {
       const descriptor = demoDescriptorFromImageData(capturedDataUrl);
       const body = { sessionId, faceDescriptor: descriptor };
       if (coords) { body.latitude = coords.latitude; body.longitude = coords.longitude; }
       const data = await api('/checkins', { method: 'POST', body });
+      resultBox.style.display = 'block';
       resultBox.className = data.status === 'accepted' ? 'success-box' : 'error-box';
       resultBox.innerHTML = `<span class="status-pill status-${data.status}">${data.status}</span> ${data.message}`;
       loadHistory();
     } catch (err) {
+      resultBox.style.display = 'block';
       resultBox.className = 'error-box';
       resultBox.textContent = err.data?.error || 'Check-in failed.';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
     }
   });
 
