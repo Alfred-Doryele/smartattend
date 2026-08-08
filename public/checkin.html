@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SmartAttend — Check in</title>
 <link rel="stylesheet" href="/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 </head>
 <body>
   <div class="topbar">
@@ -46,6 +47,7 @@
   </div>
 
 <script src="/js/api.js"></script>
+<script src="/js/faceRecognition.js"></script>
 <script>
   const user = requireAuth(['student']);
   wireLogout('logoutBtn');
@@ -53,6 +55,7 @@
 
   let coords = null;
   let capturedDataUrl = null;
+  let cameraAvailable = false;
 
   getGeolocation().then(loc => {
     coords = loc;
@@ -63,7 +66,10 @@
 
   const video = document.getElementById('video');
   const canvas = document.getElementById('canvas');
-  navigator.mediaDevices?.getUserMedia({ video: true }).then(stream => { video.srcObject = stream; }).catch(() => {
+  navigator.mediaDevices?.getUserMedia({ video: true }).then(stream => {
+    video.srcObject = stream;
+    cameraAvailable = true;
+  }).catch(() => {
     document.getElementById('frame').innerHTML = '<span style="padding:16px;text-align:center;">No camera — demo capture will be used.</span>';
   });
 
@@ -105,7 +111,9 @@
       return;
     }
     try {
-      const descriptor = demoDescriptorFromImageData(capturedDataUrl);
+      const descriptor = cameraAvailable
+        ? await realDescriptorFromVideo(video)
+        : demoDescriptorFromImageData(capturedDataUrl);
       const body = { sessionId, faceDescriptor: descriptor };
       if (coords) { body.latitude = coords.latitude; body.longitude = coords.longitude; }
       const data = await api('/checkins', { method: 'POST', body });
@@ -114,7 +122,7 @@
       loadHistory();
     } catch (err) {
       resultBox.className = 'error-box';
-      resultBox.textContent = err.data?.error || 'Check-in failed.';
+      resultBox.textContent = err.message || err.data?.error || 'Check-in failed.';
     }
   });
 
