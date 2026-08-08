@@ -4,13 +4,14 @@ const db = require('../db');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { matchFace } = require('../services/faceMatch');
 const { evaluateCheckin } = require('../services/anomalyDetection');
+const { checkinLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 router.use(authenticate);
 
 // FR-3 + FR-4 + FR-8: Facial-Recognition Check-In, Anomaly Detection, Presence Verification
 // Body: { sessionId, faceDescriptor, latitude, longitude }
-router.post('/', requireRole('student'), (req, res) => {
+router.post('/', requireRole('student'), checkinLimiter, (req, res) => {
   const { sessionId, faceDescriptor, latitude, longitude } = req.body;
   const studentId = req.user.id;
 
