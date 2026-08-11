@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartAttend — Venues</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> SmartAttend</div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="who" id="whoami"></span>
+      <a href="/dashboard.html" style="color:#AEB8D0; font-size:.85rem;">← Dashboard</a>
+      <button class="logout" id="logoutBtn">Log out</button>
+    </div>
+  </div>
+
+  <div class="shell" style="max-width:640px;">
+    <div class="card">
+      <div class="eyebrow">Admin</div>
+      <h2>Pre-register a venue</h2>
+      <p class="helper">Once a room is registered here, lecturers can pick it from a dropdown when creating a session instead of live-capturing GPS each time.</p>
+
+      <form id="venueForm">
+        <label>Venue name</label>
+        <input type="text" id="venueName" placeholder="Lecture Hall 3" required>
+        <label>Use current device location</label>
+        <button class="secondary" type="button" id="grabLocation">Capture current location</button>
+        <span class="helper" id="locResult"></span>
+        <label>Or enter coordinates manually</label>
+        <input type="number" step="any" id="venueLat" placeholder="Latitude">
+        <input type="number" step="any" id="venueLon" placeholder="Longitude" style="margin-top:8px;">
+        <label>Check-in radius (meters)</label>
+        <input type="number" id="venueRadius" value="80">
+        <button class="primary" type="submit">Register venue</button>
+      </form>
+      <div class="success-box" id="successBox" style="display:none;"></div>
+      <div class="error-box" id="errorBox" style="display:none;"></div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Registered venues</div>
+      <table id="venuesTable">
+        <thead><tr><th>Name</th><th>Latitude</th><th>Longitude</th><th>Radius (m)</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+<script src="/js/api.js"></script>
+<script>
+  const user = requireAuth(['admin']);
+  wireLogout('logoutBtn');
+  document.getElementById('whoami').textContent = user.fullName;
+
+  document.getElementById('grabLocation').addEventListener('click', async () => {
+    const loc = await getGeolocation();
+    if (!loc) { document.getElementById('locResult').textContent = 'Could not get location.'; return; }
+    document.getElementById('venueLat').value = loc.latitude;
+    document.getElementById('venueLon').value = loc.longitude;
+    document.getElementById('locResult').textContent = 'Captured.';
+  });
+
+  document.getElementById('venueForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('venueName').value;
+    const latitude = parseFloat(document.getElementById('venueLat').value);
+    const longitude = parseFloat(document.getElementById('venueLon').value);
+    const radiusMeters = parseInt(document.getElementById('venueRadius').value, 10);
+    const errBox = document.getElementById('errorBox');
+    errBox.style.display = 'none';
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      errBox.textContent = 'Provide latitude and longitude (capture or enter manually).';
+      errBox.style.display = 'block';
+      return;
+    }
+    try {
+      await api('/users/venues', { method: 'POST', body: { name, latitude, longitude, radiusMeters } });
+      document.getElementById('successBox').style.display = 'block';
+      document.getElementById('successBox').textContent = `Venue "${name}" registered.`;
+      loadVenues();
+      e.target.reset();
+    } catch (err) {
+      errBox.textContent = err.data?.error || 'Failed to register venue.';
+      errBox.style.display = 'block';
+    }
+  });
+
+  async function loadVenues() {
+    const venues = await api('/users/venues');
+    document.querySelector('#venuesTable tbody').innerHTML = venues.map(v => `
+      <tr><td>${v.name}</td><td>${v.latitude.toFixed(5)}</td><td>${v.longitude.toFixed(5)}</td><td>${v.radius_meters}</td></tr>
+    `).join('') || '<tr><td colspan="4" class="helper">No venues registered yet.</td></tr>';
+  }
+  loadVenues();
+</script>
+</body>
+</html>

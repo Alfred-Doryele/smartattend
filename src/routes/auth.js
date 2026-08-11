@@ -20,10 +20,23 @@ router.post('/register', (req, res) => {
   if (!['student', 'lecturer', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'role must be student, lecturer, or admin.' });
   }
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!EMAIL_RE.test(email)) {
+    return res.status(400).json({ error: 'Please provide a valid email address.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  }
 
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
   if (existing) {
     return res.status(409).json({ error: 'An account with this email already exists.' });
+  }
+  if (indexNumber) {
+    const dupIndex = db.prepare('SELECT id FROM users WHERE index_number = ?').get(indexNumber);
+    if (dupIndex) {
+      return res.status(409).json({ error: 'This index/staff number is already registered.' });
+    }
   }
 
   const id = uuid();

@@ -98,4 +98,18 @@ router.patch('/flags/:flagId/resolve', requireRole('lecturer', 'admin'), (req, r
   res.json({ flagId: req.params.flagId, resolution });
 });
 
+// A student's currently-open sessions across their enrolled courses.
+// Lets the check-in page list sessions instead of requiring a pasted session ID.
+router.get('/mine/open', requireRole('student'), (req, res) => {
+  const rows = db.prepare(`
+    SELECT s.id, s.start_time, s.end_time, s.status, co.code, co.title
+    FROM sessions s
+    JOIN courses co ON co.id = s.course_id
+    JOIN enrollments e ON e.course_id = co.id
+    WHERE e.student_id = ? AND s.status = 'open'
+    ORDER BY s.start_time DESC
+  `).all(req.user.id);
+  res.json(rows);
+});
+
 module.exports = router;
