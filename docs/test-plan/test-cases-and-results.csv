@@ -1,0 +1,13 @@
+Test ID,Requirement,Description,Steps,Expected Result,Actual Result,Status
+TC-01,FR-1,Register a new lecturer with valid data,POST /api/auth/register with valid fullName/email/password/role,201 Created,201 Created,PASS
+TC-02,FR-1,Reject registration with duplicate email,Register same email twice,409 Conflict,409 Conflict,PASS
+TC-03,FR-1,Reject registration with invalid role value,Register with role='superuser',400 Bad Request,400 Bad Request,PASS
+TC-04,FR-7,Login with correct credentials,POST /api/auth/login with valid email/password,200 OK + JWT token,200 OK + JWT token,PASS
+TC-05,FR-7,Reject login with wrong password,POST /api/auth/login with wrong password,401 Unauthorized,401 Unauthorized,PASS
+TC-06,FR-7,Reject unauthenticated session creation,POST /api/sessions with no Authorization header,401 Unauthorized,401 Unauthorized,PASS
+TC-07,FR-7,Block student from creating a course (role restriction),POST /api/users/courses as a student-role token,403 Forbidden,403 Forbidden,PASS
+TC-08,FR-2,Lecturer creates a course,POST /api/users/courses as lecturer,201 Created,201 Created,PASS
+TC-09,FR-6,Generate CSV attendance report,GET /api/reports/courses/:id/attendance.csv,200 OK + CSV file,200 OK + CSV file,PASS
+TC-10,NFR-Reliability,Health check endpoint responds,GET /api/health,200 OK,200 OK,PASS
+TC-11,FR-1 / NFR-Security,Reject invalid email format at registration,Register with email='notanemail',400 Bad Request,201 Created (validation not yet merged into dev — see BUG-01),FAIL
+TC-12,FR-1 / NFR-Security,Reject password under 6 characters,Register with password='123',400 Bad Request,201 Created (validation not yet merged into dev — see BUG-01),FAIL
