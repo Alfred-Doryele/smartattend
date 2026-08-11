@@ -1,0 +1,111 @@
+<svg viewBox="0 0 1000 780" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+  <rect width="1000" height="780" fill="#FFFFFF"/>
+  <text x="500" y="30" fill="#1A2233" font-size="18" font-weight="bold" text-anchor="middle">SmartAttend — Sequence Diagram: Student Check-In</text>
+
+  <!-- Lifelines -->
+  <g font-size="11" font-weight="bold" fill="#fff">
+    <rect x="30" y="50" width="120" height="30" rx="4" fill="#1D3461"/>
+    <text x="90" y="70" text-anchor="middle">Student</text>
+
+    <rect x="230" y="50" width="140" height="30" rx="4" fill="#0F9D8C"/>
+    <text x="300" y="70" text-anchor="middle">Frontend (browser)</text>
+
+    <rect x="450" y="50" width="140" height="30" rx="4" fill="#0F9D8C"/>
+    <text x="520" y="70" text-anchor="middle">face-api.js</text>
+
+    <rect x="660" y="50" width="150" height="30" rx="4" fill="#E3A008"/>
+    <text x="735" y="70" text-anchor="middle">API (checkins route)</text>
+
+    <rect x="870" y="50" width="100" height="30" rx="4" fill="#6B7385"/>
+    <text x="920" y="70" text-anchor="middle">Database</text>
+  </g>
+
+  <!-- Lifelines vertical -->
+  <line x1="90" y1="80" x2="90" y2="740" stroke="#AEB4C4" stroke-dasharray="3 3"/>
+  <line x1="300" y1="80" x2="300" y2="740" stroke="#AEB4C4" stroke-dasharray="3 3"/>
+  <line x1="520" y1="80" x2="520" y2="740" stroke="#AEB4C4" stroke-dasharray="3 3"/>
+  <line x1="735" y1="80" x2="735" y2="740" stroke="#AEB4C4" stroke-dasharray="3 3"/>
+  <line x1="920" y1="80" x2="920" y2="740" stroke="#AEB4C4" stroke-dasharray="3 3"/>
+
+  <!-- Messages -->
+  <g font-size="9.5">
+    <line x1="90" y1="110" x2="298" y2="110" stroke="#333" marker-end="url(#a)"/>
+    <text x="95" y="104">1. Selects session, clicks "Capture face"</text>
+
+    <line x1="300" y1="130" x2="518" y2="130" stroke="#333" marker-end="url(#a)"/>
+    <text x="305" y="124">2. detectSingleFace(video)</text>
+
+    <line x1="520" y1="150" x2="302" y2="150" stroke="#333" stroke-dasharray="4 2" marker-end="url(a2)"/>
+    <text x="305" y="145">3. returns 128-length descriptor</text>
+
+    <line x1="90" y1="180" x2="298" y2="180" stroke="#333" marker-end="url(#a)"/>
+    <text x="95" y="174">4. Clicks "Submit check-in"</text>
+
+    <line x1="300" y1="200" x2="298" y2="200" stroke="#333"/>
+    <text x="305" y="196">5. getGeolocation() [browser API]</text>
+
+    <line x1="300" y1="225" x2="733" y2="225" stroke="#333" marker-end="url(#a)"/>
+    <text x="305" y="219">6. POST /api/checkins { sessionId, faceDescriptor, lat, lon }</text>
+
+    <line x1="735" y1="248" x2="918" y2="248" stroke="#333" marker-end="url(#a)"/>
+    <text x="740" y="242">7. SELECT session, student (face_descriptor)</text>
+
+    <line x1="920" y1="268" x2="737" y2="268" stroke="#333" stroke-dasharray="4 2" marker-end="url(a2)"/>
+    <text x="740" y="263">8. returns rows</text>
+
+    <line x1="735" y1="295" x2="733" y2="295" stroke="#333"/>
+    <text x="740" y="291">9. matchFace(live, stored) — faceMatch.js</text>
+
+    <rect x="700" y="300" width="270" height="18" fill="#FDF1D6" stroke="#E3A008" stroke-width="0.5"/>
+    <text x="710" y="313" font-size="8.5">alt: score above threshold → passed = false</text>
+
+    <line x1="735" y1="335" x2="918" y2="335" stroke="#333" marker-end="url(#a)"/>
+    <text x="740" y="330">10. INSERT checkin (status = 'rejected')</text>
+
+    <line x1="735" y1="355" x2="298" y2="355" stroke="#333" stroke-dasharray="4 2" marker-end="url(a2)"/>
+    <text x="305" y="350">11. 200 { status: 'rejected' }</text>
+
+    <line x1="300" y1="375" x2="92" y2="375" stroke="#333" stroke-dasharray="4 2" marker-end="url(a2)"/>
+    <text x="95" y="370">12. Shows "rejected — retry" message</text>
+
+    <rect x="700" y="395" width="270" height="18" fill="#DFF6F2" stroke="#0F9D8C" stroke-width="0.5"/>
+    <text x="710" y="408" font-size="8.5">else: face matches (passed = true)</text>
+
+    <line x1="735" y1="430" x2="733" y2="430" stroke="#333"/>
+    <text x="740" y="426">13. evaluateCheckin(...) — anomalyDetection.js</text>
+
+    <line x1="735" y1="455" x2="918" y2="455" stroke="#333" marker-end="url(#a)"/>
+    <text x="740" y="450">14. haversineDistanceMeters(venue, student)</text>
+
+    <line x1="735" y1="480" x2="918" y2="480" stroke="#333" marker-end="url(#a)"/>
+    <text x="740" y="474">15. Check for duplicate face in session (query)</text>
+
+    <rect x="700" y="500" width="270" height="18" fill="#FDF1D6" stroke="#E3A008" stroke-width="0.5"/>
+    <text x="710" y="513" font-size="8.5">alt: any check fails → flagged = true</text>
+
+    <line x1="735" y1="535" x2="918" y2="535" stroke="#333" marker-end="url(#a)"/>
+    <text x="740" y="530">16. INSERT anomaly_flags; UPDATE checkin status='flagged'</text>
+
+    <line x1="735" y1="558" x2="298" y2="558" stroke="#333" stroke-dasharray="4 2" marker-end="url(a2)"/>
+    <text x="305" y="553">17. 201 { status: 'flagged', message }</text>
+
+    <rect x="700" y="578" width="270" height="18" fill="#DFF6F2" stroke="#0F9D8C" stroke-width="0.5"/>
+    <text x="710" y="591" font-size="8.5">else: all checks pass</text>
+
+    <line x1="735" y1="612" x2="918" y2="612" stroke="#333" marker-end="url(#a)"/>
+    <text x="740" y="607">18. UPDATE checkin status='accepted'</text>
+
+    <line x1="735" y1="635" x2="298" y2="635" stroke="#333" stroke-dasharray="4 2" marker-end="url(a2)"/>
+    <text x="305" y="630">19. 201 { status: 'accepted', message }</text>
+
+    <line x1="300" y1="660" x2="92" y2="660" stroke="#333" stroke-dasharray="4 2" marker-end="url(a2)"/>
+    <text x="95" y="655">20. Shows "Checked in successfully"</text>
+  </g>
+
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#333"/></marker>
+    <marker id="a2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#333"/></marker>
+  </defs>
+
+  <text x="500" y="765" fill="#AEB4C4" font-size="10" text-anchor="middle">Corresponds to public/js/faceRecognition.js, src/routes/checkins.js, src/services/faceMatch.js and anomalyDetection.js</text>
+</svg>

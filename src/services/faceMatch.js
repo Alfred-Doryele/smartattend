@@ -1,30 +1,24 @@
 /**
  * Face matching service — FR-3 (Facial-Recognition Check-In)
  * =============================================================
- * HOW THIS WORKS RIGHT NOW (demo/scaffold mode):
- *   The frontend does NOT currently run a real face-recognition model.
- *   `descriptor` is expected to be a numeric array. In demo mode the
- *   frontend (public/js/checkin.js) generates this from a simple image
- *   hash so the full pipeline — capture, compare, threshold, accept/
- *   reject, log — can be exercised end-to-end without a trained model.
+ * STATUS: Real facial recognition is now integrated via face-api.js
+ * (TensorFlow.js), running client-side in the browser. See
+ * public/js/faceRecognition.js and public/models/README.md.
  *
- * WHAT THE ML/COMPUTER VISION LEAD REPLACES:
- *   Swap the frontend capture step to use a real in-browser model —
- *   face-api.js (TensorFlow.js) is the standard lightweight choice —
- *   which outputs a 128-length face descriptor array from a live
- *   camera frame. That array is POSTed to this same API unchanged.
- *   Everything below (distance calculation, threshold, storage) is
- *   real, production-shaped logic and does NOT need to change when
- *   you swap in the real model — only the descriptor's *source* changes.
+ * The frontend captures a 128-length face descriptor from a live camera
+ * frame using face-api.js and POSTs it here unchanged. When no camera is
+ * available (e.g. a headless test environment), the frontend falls back
+ * to a deterministic demo descriptor so the pipeline stays testable.
  *
  * MATCH ALGORITHM:
  *   Euclidean distance between the live descriptor and the student's
- *   stored reference descriptor. Lower distance = closer match.
- *   This is the same comparison method used by face-api.js/dlib-based
- *   systems in production, so the pipeline transfers directly.
+ *   stored reference descriptor. Lower distance = closer match. 0.6 is
+ *   the threshold face-api.js's own documentation recommends for its
+ *   128-dimension descriptors, which is why it was chosen as the default
+ *   here even before the real model was wired in.
  */
 
-const MATCH_THRESHOLD = 0.6; // tune this once real descriptors are in use
+const MATCH_THRESHOLD = 0.6; // face-api.js's documented recommended threshold
 
 function euclideanDistance(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {

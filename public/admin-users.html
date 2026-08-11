@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartAttend — Manage Users</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> SmartAttend</div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="who" id="whoami"></span>
+      <a href="/dashboard.html" style="color:#AEB8D0; font-size:.85rem;">← Dashboard</a>
+      <button class="logout" id="logoutBtn">Log out</button>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="card">
+      <div class="eyebrow">Admin</div>
+      <h2>All users</h2>
+      <label>Filter by role</label>
+      <select id="roleFilter">
+        <option value="">All</option>
+        <option value="student">Student</option>
+        <option value="lecturer">Lecturer</option>
+        <option value="admin">Administrator</option>
+      </select>
+      <table style="margin-top:16px;">
+        <thead><tr><th>Name</th><th>Index/Staff No.</th><th>Email</th><th>Role</th><th>Registered</th><th></th></tr></thead>
+        <tbody id="usersBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script src="/js/api.js"></script>
+<script>
+  const user = requireAuth(['admin']);
+  wireLogout('logoutBtn');
+  document.getElementById('whoami').textContent = user.fullName;
+
+  let allUsers = [];
+
+  async function loadUsers() {
+    allUsers = await api('/users');
+    render();
+  }
+
+  function render() {
+    const filter = document.getElementById('roleFilter').value;
+    const rows = filter ? allUsers.filter(u => u.role === filter) : allUsers;
+    document.getElementById('usersBody').innerHTML = rows.map(u => `
+      <tr>
+        <td>${u.full_name}</td>
+        <td>${u.index_number || '—'}</td>
+        <td>${u.email}</td>
+        <td><span class="status-pill status-pending">${u.role}</span></td>
+        <td>${new Date(u.created_at).toLocaleDateString()}</td>
+        <td><button class="secondary" onclick="deactivate('${u.id}')">Deactivate</button></td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" class="helper">No users found.</td></tr>';
+  }
+
+  document.getElementById('roleFilter').addEventListener('change', render);
+
+  async function deactivate(id) {
+    if (!confirm('Remove this user account? This cannot be undone.')) return;
+    try {
+      await api(`/users/${id}/deactivate`, { method: 'PATCH' });
+      loadUsers();
+    } catch (err) { alert(err.data?.error || 'Could not deactivate user.'); }
+  }
+
+  loadUsers();
+</script>
+</body>
+</html>

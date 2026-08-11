@@ -74,3 +74,22 @@ CREATE TABLE IF NOT EXISTS anomaly_flags (
   reviewed_by TEXT REFERENCES users(id),
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Indexes for the queries that run most often (dashboard polling, check-in lookups)
+CREATE INDEX IF NOT EXISTS idx_checkins_session ON checkins(session_id);
+CREATE INDEX IF NOT EXISTS idx_checkins_student ON checkins(student_id);
+CREATE INDEX IF NOT EXISTS idx_anomaly_flags_checkin ON anomaly_flags(checkin_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_course ON sessions(course_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_course ON enrollments(course_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
