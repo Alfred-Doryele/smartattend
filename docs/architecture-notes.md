@@ -61,3 +61,12 @@ scope statement.
 - Facial recognition accuracy is untested until a real model is wired in.
 - Anomaly detection is rule-based, not ML-based, in the current scaffold — this is intentional (see product backlog) and a reasonable, defensible scope for a course project.
 - SQLite is fine for a course demo; a real deployment would move to Postgres.
+
+## SQLite vs. Postgres decision
+
+The project uses SQLite (`better-sqlite3`) rather than Postgres for the
+course submission. Reasoning:
+- Zero setup for every team member and for the lecturer — `npm install && npm start` works immediately, no database server to install or configure.
+- The schema (`database/schema.sql`) is written in portable SQL and would need only minor changes (mainly `TEXT`/`DATETIME` type adjustments) to run on Postgres.
+- SQLite comfortably handles the scale a course project demo needs (one class, tens to low hundreds of students).
+- **If the team wants production-readiness as a stretch goal:** swap `src/db.js` to use `pg` instead of `better-sqlite3`, and point `DB_PATH`/connection config at a Postgres instance. The rest of the codebase (routes, services) uses parameterized queries that translate directly.
