@@ -1,0 +1,83 @@
+<svg viewBox="0 0 950 620" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+  <rect width="950" height="620" fill="#FFFFFF"/>
+  <text x="475" y="32" fill="#1A2233" font-size="18" font-weight="bold" text-anchor="middle">SmartAttend — System Architecture Diagram</text>
+
+  <!-- Client layer -->
+  <rect x="40" y="60" width="870" height="140" rx="8" fill="#F6F7FB" stroke="#AEB4C4" stroke-dasharray="4 2"/>
+  <text x="60" y="82" fill="#6B7385" font-size="11" font-weight="bold">CLIENT (browser — student / lecturer / admin device)</text>
+
+  <rect x="60" y="95" width="200" height="90" rx="6" fill="#DFF6F2" stroke="#0F9D8C" stroke-width="1.5"/>
+  <text x="160" y="115" font-size="11" font-weight="bold" text-anchor="middle">HTML/CSS/JS pages</text>
+  <text x="70" y="133" font-size="9">login, checkin, dashboard,</text>
+  <text x="70" y="147" font-size="9">register-face, venues,</text>
+  <text x="70" y="161" font-size="9">admin-users</text>
+
+  <rect x="290" y="95" width="220" height="90" rx="6" fill="#DFF6F2" stroke="#0F9D8C" stroke-width="1.5"/>
+  <text x="400" y="115" font-size="11" font-weight="bold" text-anchor="middle">face-api.js (TensorFlow.js)</text>
+  <text x="300" y="133" font-size="9">Runs facial detection + descriptor</text>
+  <text x="300" y="147" font-size="9">extraction entirely client-side —</text>
+  <text x="300" y="161" font-size="9">no server-side ML needed</text>
+
+  <rect x="540" y="95" width="200" height="90" rx="6" fill="#DFF6F2" stroke="#0F9D8C" stroke-width="1.5"/>
+  <text x="640" y="115" font-size="11" font-weight="bold" text-anchor="middle">Browser Web APIs</text>
+  <text x="550" y="133" font-size="9">getUserMedia (camera)</text>
+  <text x="550" y="147" font-size="9">Geolocation API</text>
+  <text x="550" y="161" font-size="9">localStorage (JWT token)</text>
+
+  <rect x="770" y="95" width="120" height="90" rx="6" fill="#DFF6F2" stroke="#0F9D8C" stroke-width="1.5"/>
+  <text x="830" y="115" font-size="11" font-weight="bold" text-anchor="middle">Chart.js</text>
+  <text x="780" y="133" font-size="9">Attendance trend</text>
+  <text x="780" y="147" font-size="9">visualizations</text>
+
+  <!-- Arrow down -->
+  <line x1="475" y1="200" x2="475" y2="230" stroke="#333" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="485" y="220" font-size="9">HTTPS / JSON (REST API)</text>
+
+  <!-- Server layer -->
+  <rect x="40" y="230" width="870" height="230" rx="8" fill="#F6F7FB" stroke="#AEB4C4" stroke-dasharray="4 2"/>
+  <text x="60" y="252" fill="#6B7385" font-size="11" font-weight="bold">SERVER (Node.js + Express — src/server.js)</text>
+
+  <rect x="60" y="265" width="180" height="60" rx="6" fill="#E7ECF6" stroke="#1D3461" stroke-width="1.5"/>
+  <text x="150" y="285" font-size="10" font-weight="bold" text-anchor="middle">Middleware</text>
+  <text x="70" y="302" font-size="8.5">auth.js (JWT + roles)</text>
+  <text x="70" y="315" font-size="8.5">rateLimit.js</text>
+
+  <rect x="260" y="265" width="230" height="60" rx="6" fill="#E7ECF6" stroke="#1D3461" stroke-width="1.5"/>
+  <text x="375" y="285" font-size="10" font-weight="bold" text-anchor="middle">Routes</text>
+  <text x="270" y="302" font-size="8.5">auth, sessions, checkins, users, reports</text>
+  <text x="270" y="315" font-size="8.5">(src/routes/*.js)</text>
+
+  <rect x="510" y="265" width="220" height="60" rx="6" fill="#FDF1D6" stroke="#E3A008" stroke-width="1.5"/>
+  <text x="620" y="285" font-size="10" font-weight="bold" text-anchor="middle">Services</text>
+  <text x="520" y="302" font-size="8.5">faceMatch.js (Euclidean distance)</text>
+  <text x="520" y="315" font-size="8.5">anomalyDetection.js (geofence, flags)</text>
+
+  <rect x="750" y="265" width="140" height="60" rx="6" fill="#E7ECF6" stroke="#1D3461" stroke-width="1.5"/>
+  <text x="820" y="285" font-size="10" font-weight="bold" text-anchor="middle">PDF/CSV export</text>
+  <text x="760" y="302" font-size="8.5">pdfkit, csv builder</text>
+  <text x="760" y="315" font-size="8.5">(reports.js)</text>
+
+  <line x1="475" y1="325" x2="475" y2="360" stroke="#333" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="485" y="350" font-size="9">better-sqlite3 (parameterized SQL)</text>
+
+  <rect x="200" y="365" width="550" height="80" rx="6" fill="#E7ECF6" stroke="#1D3461" stroke-width="1.5"/>
+  <text x="475" y="388" font-size="11" font-weight="bold" text-anchor="middle">SQLite Database (database/schema.sql)</text>
+  <text x="215" y="410" font-size="8.5">users · courses · enrollments · venues · sessions</text>
+  <text x="215" y="425" font-size="8.5">checkins · anomaly_flags · password_resets</text>
+  <text x="580" y="410" font-size="8.5" fill="#6B7385">Portable to Postgres —</text>
+  <text x="580" y="425" font-size="8.5" fill="#6B7385">see architecture-notes.md</text>
+
+  <!-- External -->
+  <rect x="360" y="500" width="230" height="70" rx="6" fill="#FBE4E4" stroke="#D64545" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <text x="475" y="522" font-size="10" font-weight="bold" text-anchor="middle">External CDN (jsdelivr)</text>
+  <text x="370" y="540" font-size="8.5">face-api.js library + model weights</text>
+  <text x="370" y="553" font-size="8.5">served from public/models/ locally too</text>
+
+  <line x1="400" y1="185" x2="420" y2="500" stroke="#D64545" stroke-width="1" stroke-dasharray="2 2"/>
+
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#333"/></marker>
+  </defs>
+
+  <text x="475" y="600" fill="#AEB4C4" font-size="10" text-anchor="middle">No dedicated ML server — facial recognition runs entirely in the browser. Keeps the deployment footprint to one Node process + SQLite file.</text>
+</svg>

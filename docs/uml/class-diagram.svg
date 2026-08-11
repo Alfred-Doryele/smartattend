@@ -1,0 +1,151 @@
+<svg viewBox="0 0 1050 760" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+  <rect width="1050" height="760" fill="#FFFFFF"/>
+  <text x="525" y="32" fill="#1A2233" font-size="18" font-weight="bold" text-anchor="middle">SmartAttend — Class Diagram</text>
+
+  <!-- User -->
+  <g>
+    <rect x="30" y="60" width="210" height="200" rx="6" fill="#E7ECF6" stroke="#1D3461" stroke-width="1.5"/>
+    <rect x="30" y="60" width="210" height="26" fill="#1D3461"/>
+    <text x="135" y="78" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">User</text>
+    <line x1="30" y1="86" x2="240" y2="86" stroke="#1D3461"/>
+    <text x="38" y="102" font-size="9">- id: string</text>
+    <text x="38" y="116" font-size="9">- fullName: string</text>
+    <text x="38" y="130" font-size="9">- indexNumber: string</text>
+    <text x="38" y="144" font-size="9">- email: string</text>
+    <text x="38" y="158" font-size="9">- passwordHash: string</text>
+    <text x="38" y="172" font-size="9">- role: 'student'|'lecturer'|'admin'</text>
+    <text x="38" y="186" font-size="9">- faceDescriptor: number[]</text>
+    <line x1="30" y1="196" x2="240" y2="196" stroke="#1D3461"/>
+    <text x="38" y="212" font-size="9">+ register()</text>
+    <text x="38" y="226" font-size="9">+ login()</text>
+    <text x="38" y="240" font-size="9">+ updateFaceReference()</text>
+  </g>
+
+  <!-- Course -->
+  <g>
+    <rect x="300" y="60" width="180" height="120" rx="6" fill="#DFF6F2" stroke="#0F9D8C" stroke-width="1.5"/>
+    <rect x="300" y="60" width="180" height="26" fill="#0F9D8C"/>
+    <text x="390" y="78" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Course</text>
+    <line x1="300" y1="86" x2="480" y2="86" stroke="#0F9D8C"/>
+    <text x="308" y="102" font-size="9">- id: string</text>
+    <text x="308" y="116" font-size="9">- code: string</text>
+    <text x="308" y="130" font-size="9">- title: string</text>
+    <text x="308" y="144" font-size="9">- lecturerId: string</text>
+    <line x1="300" y1="154" x2="480" y2="154" stroke="#0F9D8C"/>
+    <text x="308" y="170" font-size="9">+ enrollStudent()</text>
+  </g>
+
+  <!-- Venue -->
+  <g>
+    <rect x="820" y="60" width="200" height="120" rx="6" fill="#FDF1D6" stroke="#E3A008" stroke-width="1.5"/>
+    <rect x="820" y="60" width="200" height="26" fill="#E3A008"/>
+    <text x="920" y="78" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Venue</text>
+    <line x1="820" y1="86" x2="1020" y2="86" stroke="#E3A008"/>
+    <text x="828" y="102" font-size="9">- id: string</text>
+    <text x="828" y="116" font-size="9">- name: string</text>
+    <text x="828" y="130" font-size="9">- latitude, longitude: number</text>
+    <text x="828" y="144" font-size="9">- radiusMeters: number</text>
+  </g>
+
+  <!-- Session -->
+  <g>
+    <rect x="300" y="230" width="220" height="200" rx="6" fill="#DFF6F2" stroke="#0F9D8C" stroke-width="1.5"/>
+    <rect x="300" y="230" width="220" height="26" fill="#0F9D8C"/>
+    <text x="410" y="248" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Session</text>
+    <line x1="300" y1="256" x2="520" y2="256" stroke="#0F9D8C"/>
+    <text x="308" y="272" font-size="9">- id: string</text>
+    <text x="308" y="286" font-size="9">- courseId: string</text>
+    <text x="308" y="300" font-size="9">- venueLatitude, venueLongitude: number</text>
+    <text x="308" y="314" font-size="9">- startTime, endTime: datetime</text>
+    <text x="308" y="328" font-size="9">- status: 'open'|'closed'</text>
+    <text x="308" y="342" font-size="9">- reverifyAt: datetime</text>
+    <line x1="300" y1="352" x2="520" y2="352" stroke="#0F9D8C"/>
+    <text x="308" y="368" font-size="9">+ close()</text>
+    <text x="308" y="382" font-size="9">+ getDashboard()</text>
+    <text x="308" y="396" font-size="9">+ flagMissedReverifications()</text>
+  </g>
+
+  <!-- Checkin -->
+  <g>
+    <rect x="30" y="290" width="230" height="240" rx="6" fill="#E7ECF6" stroke="#1D3461" stroke-width="1.5"/>
+    <rect x="30" y="290" width="230" height="26" fill="#1D3461"/>
+    <text x="145" y="308" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Checkin</text>
+    <line x1="30" y1="316" x2="260" y2="316" stroke="#1D3461"/>
+    <text x="38" y="332" font-size="9">- id: string</text>
+    <text x="38" y="346" font-size="9">- sessionId, studentId: string</text>
+    <text x="38" y="360" font-size="9">- faceMatchScore: number</text>
+    <text x="38" y="374" font-size="9">- studentLatitude, studentLongitude: number</text>
+    <text x="38" y="388" font-size="9">- distanceFromVenueMeters: number</text>
+    <text x="38" y="402" font-size="9">- locationVerified: boolean</text>
+    <text x="38" y="416" font-size="9">- reverified: boolean</text>
+    <text x="38" y="430" font-size="9">- status: 'accepted'|'flagged'|'rejected'</text>
+    <line x1="30" y1="440" x2="260" y2="440" stroke="#1D3461"/>
+    <text x="38" y="456" font-size="9">+ submit()</text>
+    <text x="38" y="470" font-size="9">+ reverify()</text>
+  </g>
+
+  <!-- AnomalyFlag -->
+  <g>
+    <rect x="820" y="290" width="220" height="170" rx="6" fill="#FDF1D6" stroke="#E3A008" stroke-width="1.5"/>
+    <rect x="820" y="290" width="220" height="26" fill="#E3A008"/>
+    <text x="930" y="308" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">AnomalyFlag</text>
+    <line x1="820" y1="316" x2="1040" y2="316" stroke="#E3A008"/>
+    <text x="828" y="332" font-size="9">- id: string</text>
+    <text x="828" y="346" font-size="9">- checkinId: string</text>
+    <text x="828" y="360" font-size="9">- reason: string</text>
+    <text x="828" y="374" font-size="9">- detail: string</text>
+    <text x="828" y="388" font-size="9">- resolved: boolean</text>
+    <text x="828" y="402" font-size="9">- resolution: string</text>
+    <line x1="820" y1="412" x2="1040" y2="412" stroke="#E3A008"/>
+    <text x="828" y="428" font-size="9">+ resolve(resolution)</text>
+  </g>
+
+  <!-- FaceMatchService -->
+  <g>
+    <rect x="30" y="570" width="240" height="120" rx="6" fill="#F6F7FB" stroke="#6B7385" stroke-width="1.5" stroke-dasharray="4 2"/>
+    <rect x="30" y="570" width="240" height="26" fill="#6B7385"/>
+    <text x="150" y="588" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">«service» FaceMatchService</text>
+    <line x1="30" y1="596" x2="270" y2="596" stroke="#6B7385"/>
+    <text x="38" y="612" font-size="9">+ matchFace(live, stored): {score, passed}</text>
+    <text x="38" y="626" font-size="9">+ euclideanDistance(a, b): number</text>
+    <text x="38" y="644" font-size="9" fill="#6B7385">MATCH_THRESHOLD = 0.6</text>
+  </g>
+
+  <!-- AnomalyDetectionService -->
+  <g>
+    <rect x="330" y="570" width="270" height="140" rx="6" fill="#F6F7FB" stroke="#6B7385" stroke-width="1.5" stroke-dasharray="4 2"/>
+    <rect x="330" y="570" width="270" height="26" fill="#6B7385"/>
+    <text x="465" y="588" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">«service» AnomalyDetectionService</text>
+    <line x1="330" y1="596" x2="600" y2="596" stroke="#6B7385"/>
+    <text x="338" y="612" font-size="9">+ evaluateCheckin(...): {flagged, distance}</text>
+    <text x="338" y="626" font-size="9">+ flagMissedReverifications(sessionId)</text>
+    <text x="338" y="640" font-size="9">+ haversineDistanceMeters(lat1,lon1,lat2,lon2)</text>
+  </g>
+
+  <!-- Relationships -->
+  <line x1="240" y1="140" x2="300" y2="120" stroke="#555" stroke-width="1"/>
+  <text x="245" y="115" font-size="9" fill="#555">1..* lecturer</text>
+
+  <line x1="480" y1="130" x2="820" y2="120" stroke="#555" stroke-width="1" stroke-dasharray="2 2"/>
+  <text x="600" y="115" font-size="9" fill="#555">uses (optional)</text>
+
+  <line x1="410" y1="180" x2="410" y2="230" stroke="#555" stroke-width="1"/>
+  <text x="415" y="210" font-size="9" fill="#555">1..*</text>
+
+  <line x1="300" y1="380" x2="260" y2="380" stroke="#555" stroke-width="1"/>
+  <text x="270" y="373" font-size="9" fill="#555">1..*</text>
+
+  <line x1="240" y1="200" x2="145" y2="290" stroke="#555" stroke-width="1"/>
+  <text x="200" y="250" font-size="9" fill="#555">student 1..*</text>
+
+  <line x1="260" y1="400" x2="820" y2="360" stroke="#555" stroke-width="1"/>
+  <text x="540" y="375" font-size="9" fill="#555">1..*</text>
+
+  <line x1="145" y1="530" x2="150" y2="570" stroke="#555" stroke-width="1" stroke-dasharray="2 2"/>
+  <text x="150" y="555" font-size="9" fill="#555">uses</text>
+
+  <line x1="200" y1="530" x2="465" y2="570" stroke="#555" stroke-width="1" stroke-dasharray="2 2"/>
+  <text x="330" y="555" font-size="9" fill="#555">uses</text>
+
+  <text x="525" y="740" fill="#AEB4C4" font-size="10" text-anchor="middle">Solid lines = associations (with multiplicity). Dashed lines = dependency ("uses"). Services are stateless modules, not persisted entities.</text>
+</svg>
