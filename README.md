@@ -108,7 +108,7 @@ University of Energy and Natural Resources, Sunyani
 
 | Role | Member |
 |---|---|
-| Project Manager | |
+| Project Manager |Doryele Alfred |
 | System Analyst | |
 | UI/UX Designer | |
 | Developer — Registration & Scheduling | |
