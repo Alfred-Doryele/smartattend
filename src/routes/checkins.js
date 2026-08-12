@@ -15,13 +15,16 @@ router.post('/', requireRole('student'), (req, res) => {
   const studentId = req.user.id;
 
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found.' });
+  if (!session) return res.status(404).json({ error: 'Session not found. It may have been reset — ask your lecturer for a new session ID.' });
   if (session.status !== 'open') return res.status(400).json({ error: 'This session is not open for check-in.' });
 
   const already = db.prepare('SELECT id FROM checkins WHERE session_id = ? AND student_id = ?').get(sessionId, studentId);
   if (already) return res.status(409).json({ error: 'You have already checked in to this session.' });
 
   const student = db.prepare('SELECT * FROM users WHERE id = ?').get(studentId);
+  if (!student) {
+    return res.status(401).json({ error: 'Your account could not be found. Please log out and log back in.' });
+  }
   if (!student.face_descriptor) {
     return res.status(400).json({ error: 'No facial reference on file. Please complete registration first.' });
   }
@@ -49,7 +52,6 @@ router.post('/', requireRole('student'), (req, res) => {
     });
   }
 
-  // Face matched — now run anomaly checks (location, duplicate face, low confidence)
   const { flagged, distance, locationVerified } = evaluateCheckin({
     checkinId, session, studentId, faceMatch: faceResult, studentLat: latitude, studentLon: longitude,
   });
@@ -70,7 +72,6 @@ router.post('/', requireRole('student'), (req, res) => {
   });
 });
 
-// Mid-session re-verification — closes the "checked in then left" gap
 router.post('/:checkinId/reverify', requireRole('student'), (req, res) => {
   const { faceDescriptor } = req.body;
   const checkin = db.prepare('SELECT * FROM checkins WHERE id = ?').get(req.params.checkinId);
@@ -78,6 +79,9 @@ router.post('/:checkinId/reverify', requireRole('student'), (req, res) => {
     return res.status(404).json({ error: 'Check-in not found.' });
   }
   const student = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!student) {
+    return res.status(401).json({ error: 'Your account could not be found. Please log out and log back in.' });
+  }
   const storedDescriptor = JSON.parse(student.face_descriptor);
   const result = matchFace(faceDescriptor, storedDescriptor);
 
@@ -88,7 +92,6 @@ router.post('/:checkinId/reverify', requireRole('student'), (req, res) => {
   res.status(400).json({ reverified: false, message: 'Re-verification face match failed.' });
 });
 
-// A student's own attendance history — FR-1
 router.get('/me', requireRole('student'), (req, res) => {
   const rows = db.prepare(
     `SELECT c.*, s.start_time, co.code, co.title FROM checkins c
