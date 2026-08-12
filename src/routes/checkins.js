@@ -44,7 +44,7 @@ router.post('/', requireRole('student'), (req, res) => {
     return res.status(200).json({
       checkinId,
       status: 'rejected',
-      reason: 'Face did not match stored reference. You may retry or request manual lecturer review.',
+      message: 'Face did not match stored reference. You may retry or request manual lecturer review.',
       score: faceResult.score,
     });
   }
