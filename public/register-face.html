@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SmartAttend — Capture your face reference</title>
 <link rel="stylesheet" href="/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 </head>
 <body>
   <div class="topbar">
@@ -31,6 +32,7 @@
   </div>
 
 <script src="/js/api.js"></script>
+<script src="/js/faceRecognition.js"></script>
 <script>
   requireAuth(['student']);
   wireLogout('logoutBtn');
@@ -38,9 +40,11 @@
   const video = document.getElementById('video');
   const canvas = document.getElementById('canvas');
   let capturedDataUrl = null;
+  let cameraAvailable = false;
 
   navigator.mediaDevices?.getUserMedia({ video: true }).then(stream => {
     video.srcObject = stream;
+    cameraAvailable = true;
   }).catch(() => {
     document.getElementById('frame').innerHTML = '<span style="padding:16px;text-align:center;">No camera detected. In demo mode, capture will still work with a placeholder image.</span>';
   });
@@ -66,15 +70,28 @@
 
   document.getElementById('saveBtn').addEventListener('click', async () => {
     const errBox = document.getElementById('errorBox');
+    const saveBtn = document.getElementById('saveBtn');
     errBox.style.display = 'none';
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Processing face…';
     try {
-      const descriptor = demoDescriptorFromImageData(capturedDataUrl);
+      let descriptor;
+      if (cameraAvailable) {
+        // Real face-api.js descriptor extraction from the live video frame
+        descriptor = await realDescriptorFromVideo(video);
+      } else {
+        // No camera in this environment — fall back to the demo descriptor
+        // so the rest of the pipeline can still be exercised end to end.
+        descriptor = demoDescriptorFromImageData(capturedDataUrl);
+      }
       await api('/auth/me/face', { method: 'PATCH', body: { faceDescriptor: descriptor } });
       document.getElementById('successBox').style.display = 'block';
       setTimeout(() => window.location.href = '/checkin.html', 1200);
     } catch (err) {
-      errBox.textContent = err.data?.error || 'Could not save reference.';
+      errBox.textContent = err.message || err.data?.error || 'Could not save reference.';
       errBox.style.display = 'block';
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save reference & continue';
     }
   });
 </script>
