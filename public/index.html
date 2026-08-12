@@ -70,8 +70,11 @@
     try {
       const data = await api('/auth/login', { method: 'POST', body: { email, password } });
       setSession(data.token, data.user);
-      if (data.user.role === 'student') window.location.href = '/checkin.html';
-      else window.location.href = '/dashboard.html';
+      if (data.user.role === 'student') {
+        window.location.href = data.user.hasFaceReference ? '/checkin.html' : '/register-face.html';
+      } else {
+        window.location.href = '/dashboard.html';
+      }
     } catch (err) {
       errBox.textContent = err.data?.error || 'Sign in failed.';
       errBox.style.display = 'block';
@@ -88,8 +91,6 @@
     const errBox = document.getElementById('registerError');
     errBox.style.display = 'none';
     try {
-      // NOTE: face capture happens on first check-in for simplicity in this
-      // scaffold. A production build would capture it here at registration.
       await api('/auth/register', { method: 'POST', body: { fullName, role, indexNumber, email, password } });
       const data = await api('/auth/login', { method: 'POST', body: { email, password } });
       setSession(data.token, data.user);
