@@ -109,6 +109,7 @@
       document.getElementById('courseSuccess').style.display = 'block';
       document.getElementById('courseSuccess').textContent = `Course "${code}" created.`;
       loadCourses();
+      loadReportCourses();
     } catch (err) { alert(err.data?.error || 'Failed to create course.'); }
   });
 
