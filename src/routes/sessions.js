@@ -12,41 +12,51 @@ router.use(authenticate);
 // Location comes from EITHER a pre-registered venueId OR a live lat/lon from the lecturer's device
 // (Gap 1, Options A and B from the requirements discussion).
 router.post('/', requireRole('lecturer', 'admin'), (req, res) => {
-  const { courseId, venueId, latitude, longitude, startTime, durationMinutes, reverifyAfterMinutes } = req.body;
+  try {
+    const { courseId, venueId, latitude, longitude, startTime, durationMinutes, reverifyAfterMinutes } = req.body;
 
-  if (!courseId || !startTime) {
-    return res.status(400).json({ error: 'courseId and startTime are required.' });
+    if (!courseId || !startTime) {
+      return res.status(400).json({ error: 'courseId and startTime are required.' });
+    }
+
+    const courseExists = db.prepare('SELECT id FROM courses WHERE id = ?').get(courseId);
+    if (!courseExists) {
+      return res.status(400).json({ error: 'That course could not be found. Please create or re-select the course first.' });
+    }
+
+    let venueLat = latitude ?? null;
+    let venueLon = longitude ?? null;
+
+    if (venueId) {
+      const venue = db.prepare('SELECT * FROM venues WHERE id = ?').get(venueId);
+      if (!venue) return res.status(404).json({ error: 'Venue not found.' });
+      venueLat = venue.latitude;
+      venueLon = venue.longitude;
+    }
+
+    if (venueLat == null || venueLon == null) {
+      return res.status(400).json({
+        error: 'Provide either a venueId (pre-registered location) or latitude/longitude (lecturer\'s live location).'
+      });
+    }
+
+    const id = uuid();
+    const start = new Date(startTime);
+    const end = durationMinutes ? new Date(start.getTime() + durationMinutes * 60000) : null;
+    const reverifyAt = reverifyAfterMinutes
+      ? new Date(start.getTime() + reverifyAfterMinutes * 60000).toISOString()
+      : null;
+
+    db.prepare(
+      `INSERT INTO sessions (id, course_id, venue_id, venue_latitude, venue_longitude, start_time, end_time, reverify_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, courseId, venueId || null, venueLat, venueLon, start.toISOString(), end ? end.toISOString() : null, reverifyAt);
+
+    res.status(201).json({ id, courseId, venueLat, venueLon, startTime: start.toISOString(), reverifyAt });
+  } catch (err) {
+    console.error('Failed to create session:', err);
+    res.status(500).json({ error: 'Server error creating session: ' + err.message });
   }
-
-  let venueLat = latitude ?? null;
-  let venueLon = longitude ?? null;
-
-  if (venueId) {
-    const venue = db.prepare('SELECT * FROM venues WHERE id = ?').get(venueId);
-    if (!venue) return res.status(404).json({ error: 'Venue not found.' });
-    venueLat = venue.latitude;
-    venueLon = venue.longitude;
-  }
-
-  if (venueLat == null || venueLon == null) {
-    return res.status(400).json({
-      error: 'Provide either a venueId (pre-registered location) or latitude/longitude (lecturer\'s live location).'
-    });
-  }
-
-  const id = uuid();
-  const start = new Date(startTime);
-  const end = durationMinutes ? new Date(start.getTime() + durationMinutes * 60000) : null;
-  const reverifyAt = reverifyAfterMinutes
-    ? new Date(start.getTime() + reverifyAfterMinutes * 60000).toISOString()
-    : null;
-
-  db.prepare(
-    `INSERT INTO sessions (id, course_id, venue_id, venue_latitude, venue_longitude, start_time, end_time, reverify_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, courseId, venueId || null, venueLat, venueLon, start.toISOString(), end ? end.toISOString() : null, reverifyAt);
-
-  res.status(201).json({ id, courseId, venueLat, venueLon, startTime: start.toISOString(), reverifyAt });
 });
 
 // Close a session (stop accepting check-ins)
@@ -55,12 +65,24 @@ router.patch('/:id/close', requireRole('lecturer', 'admin'), (req, res) => {
   res.json({ id: req.params.id, status: 'closed' });
 });
 
+// A student's currently-open sessions across their enrolled courses.
+router.get('/mine/open', requireRole('student'), (req, res) => {
+  const rows = db.prepare(`
+    SELECT s.id, s.start_time, s.end_time, s.status, co.code, co.title
+    FROM sessions s
+    JOIN courses co ON co.id = s.course_id
+    JOIN enrollments e ON e.course_id = co.id
+    WHERE e.student_id = ? AND s.status = 'open'
+    ORDER BY s.start_time DESC
+  `).all(req.user.id);
+  res.json(rows);
+});
+
 // Live dashboard data for a session — FR-5
 router.get('/:id/dashboard', requireRole('lecturer', 'admin'), (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found.' });
 
-  // Trigger the "checked in then left" check before returning data
   flagMissedReverifications(session.id);
 
   const checkins = db.prepare(
@@ -79,9 +101,9 @@ router.get('/:id/dashboard', requireRole('lecturer', 'admin'), (req, res) => {
   res.json({ session, checkins, flags });
 });
 
-// Resolve a flag — lecturer makes the final call (per our "human decides" design principle)
+// Resolve a flag — lecturer makes the final call
 router.patch('/flags/:flagId/resolve', requireRole('lecturer', 'admin'), (req, res) => {
-  const { resolution } = req.body; // 'confirmed_present' | 'marked_absent'
+  const { resolution } = req.body;
   if (!['confirmed_present', 'marked_absent'].includes(resolution)) {
     return res.status(400).json({ error: 'resolution must be confirmed_present or marked_absent.' });
   }
