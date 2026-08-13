@@ -10,6 +10,22 @@
  *      -> duplicate-face-in-session check.
  *   4. "Low-confidence face match forced through"
  *      -> confidence flag, independent of the accept/reject decision.
+ *   5. "GPS readings are naturally imprecise, especially indoors"
+ *      -> accuracy-tolerant geofence comparison, see below.
+ *
+ * ACCURACY-AWARE GEOFENCING:
+ *   A raw distance-vs-radius check treats every GPS reading as exact,
+ *   which it never is — a phone's own reported accuracy (in meters) can
+ *   range from ~5m outdoors with a clear sky to 100m+ indoors. Comparing
+ *   raw distance against the radius alone causes false "too far away"
+ *   flags for genuinely present students whenever GPS drifts.
+ *
+ *   Instead, the effective allowed distance is widened by both the
+ *   student's and the venue's reported accuracy: a student 90m from the
+ *   venue with 50m of GPS uncertainty is treated the same as a student
+ *   who might genuinely be anywhere from 40m to 140m away — if the
+ *   venue's radius plus both accuracies could plausibly include them,
+ *   it's not treated as a mismatch.
  *
  * DESIGN PRINCIPLE (per our discussion with the team):
  *   None of these functions silently block a student. They attach a
@@ -21,6 +37,10 @@ const db = require('../db');
 const { v4: uuid } = require('uuid');
 
 const EARTH_RADIUS_M = 6371000;
+
+// If accuracy is worse than this, the reading is unreliable enough to
+// flag on its own, regardless of the resulting distance calculation.
+const POOR_ACCURACY_THRESHOLD_M = 150;
 
 function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -43,26 +63,40 @@ function flag(checkinId, reason, detail) {
  * Runs all anomaly checks for a freshly-created check-in and returns
  * whether the check-in should be marked 'flagged' instead of 'accepted'.
  */
-function evaluateCheckin({ checkinId, session, studentId, faceMatch, studentLat, studentLon }) {
+function evaluateCheckin({ checkinId, session, studentId, faceMatch, studentLat, studentLon, studentAccuracy }) {
   let flagged = false;
 
-  // --- Gap 1 & 2: Location verification ---
+  // --- Gap 1, 2 & 5: Location verification (accuracy-aware) ---
   let distance = null;
   let locationVerified = false;
   const venueLat = session.venue_latitude;
   const venueLon = session.venue_longitude;
+  const venueAccuracy = session.venue_accuracy_meters || 0;
+  const studentAcc = studentAccuracy || 0;
 
   if (venueLat != null && venueLon != null && studentLat != null && studentLon != null) {
     distance = haversineDistanceMeters(venueLat, venueLon, studentLat, studentLon);
     const radius = session.radius_meters || 80;
-    locationVerified = distance <= radius;
+    // Widen the allowed distance by both readings' reported uncertainty —
+    // see module doc comment above for the reasoning.
+    const effectiveRadius = radius + studentAcc + venueAccuracy;
+    locationVerified = distance <= effectiveRadius;
+
     if (!locationVerified) {
       flag(checkinId, 'location_mismatch',
-        `Student was ${Math.round(distance)}m from the session venue (allowed radius ${radius}m).`);
+        `Student was ${Math.round(distance)}m from the session venue (allowed radius ${radius}m, ` +
+        `widened to ${Math.round(effectiveRadius)}m accounting for GPS accuracy: student ±${Math.round(studentAcc)}m, venue ±${Math.round(venueAccuracy)}m).`);
+      flagged = true;
+    }
+
+    // Even when accepted, a poor GPS reading is worth a lecturer's awareness —
+    // it means the "verified" result is a wider net, not a precise fix.
+    if (studentAcc > POOR_ACCURACY_THRESHOLD_M) {
+      flag(checkinId, 'low_gps_accuracy',
+        `Student's device reported low GPS accuracy (±${Math.round(studentAcc)}m). Location result may be unreliable.`);
       flagged = true;
     }
   } else {
-    // No location data submitted at all — can't verify, so flag rather than assume
     flag(checkinId, 'location_unverified', 'No geolocation data was provided at check-in.');
     flagged = true;
   }
