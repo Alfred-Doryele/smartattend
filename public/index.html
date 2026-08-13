@@ -26,7 +26,35 @@
         <div class="error-box" id="loginError" style="display:none;"></div>
       </form>
 
-      <p class="helper" style="margin-top:18px;">No account yet? <a href="#" id="showRegister">Register here</a></p>
+      <p class="helper" style="margin-top:18px;">
+        <a href="#" id="showForgot">Forgot password?</a>
+        &nbsp;·&nbsp;
+        No account yet? <a href="#" id="showRegister">Register here</a>
+      </p>
+    </div>
+
+    <div class="card" id="forgotCard" style="display:none;">
+      <div class="eyebrow">Reset password</div>
+      <h2>Forgot your password?</h2>
+
+      <form id="forgotRequestForm">
+        <label>Email</label>
+        <input type="email" id="forgotEmail" required placeholder="you@uenr.edu.gh">
+        <button class="primary" type="submit">Send reset code</button>
+        <div class="error-box" id="forgotRequestError" style="display:none;"></div>
+      </form>
+
+      <div id="forgotCodeBox" style="display:none; margin-top:16px;">
+        <div class="success-box" id="forgotDevNote" style="margin-bottom:14px;"></div>
+        <form id="forgotConfirmForm">
+          <label>Reset code</label>
+          <input type="text" id="resetToken" required placeholder="Paste the code shown above">
+          <label>New password</label>
+          <input type="password" id="newPassword" required minlength="6" placeholder="At least 6 characters">
+          <button class="primary" type="submit">Update password</button>
+          <div class="error-box" id="forgotConfirmError" style="display:none;"></div>
+        </form>
+      </div>
     </div>
 
     <div class="card" id="registerCard" style="display:none;">
@@ -59,6 +87,13 @@
   document.getElementById('showRegister').addEventListener('click', (e) => {
     e.preventDefault();
     document.getElementById('registerCard').style.display = 'block';
+    document.getElementById('forgotCard').style.display = 'none';
+  });
+
+  document.getElementById('showForgot').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('forgotCard').style.display = 'block';
+    document.getElementById('registerCard').style.display = 'none';
   });
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -98,6 +133,43 @@
       else window.location.href = '/dashboard.html';
     } catch (err) {
       errBox.textContent = err.data?.error || 'Registration failed.';
+      errBox.style.display = 'block';
+    }
+  });
+
+  document.getElementById('forgotRequestForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('forgotEmail').value;
+    const errBox = document.getElementById('forgotRequestError');
+    errBox.style.display = 'none';
+    try {
+      const data = await api('/auth/password-reset/request', { method: 'POST', body: { email } });
+      document.getElementById('forgotCodeBox').style.display = 'block';
+      const note = document.getElementById('forgotDevNote');
+      if (data.devToken) {
+        note.textContent = `Demo mode (no email service configured): your reset code is ${data.devToken}`;
+      } else {
+        note.textContent = 'If that email is registered, a reset code has been generated. Check with your administrator.';
+      }
+    } catch (err) {
+      errBox.textContent = err.data?.error || 'Could not process request.';
+      errBox.style.display = 'block';
+    }
+  });
+
+  document.getElementById('forgotConfirmForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const token = document.getElementById('resetToken').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const errBox = document.getElementById('forgotConfirmError');
+    errBox.style.display = 'none';
+    try {
+      await api('/auth/password-reset/confirm', { method: 'POST', body: { token, newPassword } });
+      alert('Password updated. You can now sign in with your new password.');
+      document.getElementById('forgotCard').style.display = 'none';
+      document.getElementById('loginEmail').value = document.getElementById('forgotEmail').value;
+    } catch (err) {
+      errBox.textContent = err.data?.error || 'Could not reset password.';
       errBox.style.display = 'block';
     }
   });
