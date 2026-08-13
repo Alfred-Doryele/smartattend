@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   venue_id TEXT REFERENCES venues(id),          -- NULL if lecturer used their live location instead (Gap 1, Option B)
   venue_latitude REAL,                          -- snapshot of location actually used for THIS session
   venue_longitude REAL,
+  venue_accuracy_meters REAL,                   -- GPS accuracy reported when the lecturer captured this location
   start_time TEXT NOT NULL,
   end_time TEXT,
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS checkins (
   face_match_passed INTEGER,            -- 1 / 0
   student_latitude REAL,
   student_longitude REAL,
+  student_accuracy_meters REAL,         -- GPS accuracy reported at check-in time
   distance_from_venue_meters REAL,
   location_verified INTEGER,            -- 1 / 0
   reverified INTEGER DEFAULT 0,         -- 1 once the mid-session re-check has been completed successfully
@@ -67,10 +69,29 @@ CREATE TABLE IF NOT EXISTS checkins (
 CREATE TABLE IF NOT EXISTS anomaly_flags (
   id TEXT PRIMARY KEY,
   checkin_id TEXT NOT NULL REFERENCES checkins(id),
-  reason TEXT NOT NULL,                 -- e.g. 'location_mismatch', 'duplicate_face', 'low_confidence_match', 'no_reverification'
+  reason TEXT NOT NULL,                 -- e.g. 'location_mismatch', 'duplicate_face', 'low_confidence_match', 'no_reverification', 'low_gps_accuracy'
   detail TEXT,
   resolved INTEGER DEFAULT 0,
   resolution TEXT CHECK (resolution IN ('confirmed_present', 'marked_absent', NULL)),
   reviewed_by TEXT REFERENCES users(id),
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Indexes for the queries that run most often (dashboard polling, check-in lookups)
+CREATE INDEX IF NOT EXISTS idx_checkins_session ON checkins(session_id);
+CREATE INDEX IF NOT EXISTS idx_checkins_student ON checkins(student_id);
+CREATE INDEX IF NOT EXISTS idx_anomaly_flags_checkin ON anomaly_flags(checkin_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_course ON sessions(course_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_course ON enrollments(course_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
