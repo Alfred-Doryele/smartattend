@@ -4,13 +4,14 @@ const db = require('../db');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { matchFace } = require('../services/faceMatch');
 const { evaluateCheckin } = require('../services/anomalyDetection');
+const { checkinLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 router.use(authenticate);
 
 // FR-3 + FR-4 + FR-8: Facial-Recognition Check-In, Anomaly Detection, Presence Verification
 // Body: { sessionId, faceDescriptor, latitude, longitude }
-router.post('/', requireRole('student'), (req, res) => {
+router.post('/', requireRole('student'), checkinLimiter, (req, res) => {
   const { sessionId, faceDescriptor, latitude, longitude } = req.body;
   const studentId = req.user.id;
 
@@ -18,8 +19,18 @@ router.post('/', requireRole('student'), (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found. It may have been reset — ask your lecturer for a new session ID.' });
   if (session.status !== 'open') return res.status(400).json({ error: 'This session is not open for check-in.' });
 
-  const already = db.prepare('SELECT id FROM checkins WHERE session_id = ? AND student_id = ?').get(sessionId, studentId);
-  if (already) return res.status(409).json({ error: 'You have already checked in to this session.' });
+  // A student can retry after a REJECTED attempt (face mismatch) — only an
+  // ACCEPTED or FLAGGED check-in actually blocks further attempts, since
+  // those represent a real, resolved-or-pending outcome.
+  const existing = db.prepare('SELECT * FROM checkins WHERE session_id = ? AND student_id = ?').get(sessionId, studentId);
+  if (existing) {
+    if (existing.status === 'accepted' || existing.status === 'flagged') {
+      return res.status(409).json({ error: 'You have already checked in to this session.' });
+    }
+    // Previous attempt was rejected — clear it so a fresh attempt can be recorded.
+    db.prepare('DELETE FROM checkins WHERE id = ?').run(existing.id);
+    db.prepare('DELETE FROM anomaly_flags WHERE checkin_id = ?').run(existing.id);
+  }
 
   const student = db.prepare('SELECT * FROM users WHERE id = ?').get(studentId);
   if (!student) {
