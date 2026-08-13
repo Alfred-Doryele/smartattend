@@ -1,24 +1,10 @@
 /**
  * Real facial-recognition capture using face-api.js (TensorFlow.js).
  * =====================================================================
- * This REPLACES demoDescriptorFromImageData() from the initial scaffold.
- * face-api.js runs entirely in the browser — no server-side ML
- * infrastructure needed, which is why it was chosen (see
- * docs/architecture-notes.md for the reasoning).
- *
- * SETUP REQUIRED before this works:
- *   1. Models must be available at /models (see loadModels() below) —
- *      download the tiny_face_detector + face_landmark_68 + face_recognition
- *      model weights from the face-api.js weights repo and place them in
- *      public/models/. (Not committed to this repo — model files are
- *      several MB and don't belong in Git history; see public/models/README.md.)
- *   2. Include the face-api.js script tag on any page that uses this file
- *      (already added to register-face.html and checkin.html):
- *      <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
- *
- * OUTPUT: a 128-length Float32 descriptor array — same shape the backend
- * (src/services/faceMatch.js) already expects, so no backend changes
- * were needed to wire this in.
+ * Tuned for phone cameras: larger input size for better small-face
+ * detection, a lower confidence threshold so imperfect lighting still
+ * registers a face, and automatic retries instead of failing on the
+ * first miss.
  */
 
 let modelsLoaded = false;
@@ -34,33 +20,43 @@ async function loadModels() {
   modelsLoaded = true;
 }
 
-/**
- * Captures a single descriptor from a live <video> element.
- * @param {HTMLVideoElement} videoEl
- * @returns {Promise<number[]|null>} 128-length descriptor, or null if no face was detected
- */
-async function captureFaceDescriptor(videoEl) {
-  await loadModels();
-
-  const detection = await faceapi
-    .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions())
-    .withFaceLandmarks()
-    .withFaceDescriptor();
-
-  if (!detection) return null;
-  return Array.from(detection.descriptor);
+function waitForVideoReady(videoEl) {
+  return new Promise((resolve) => {
+    if (videoEl.readyState >= 2) return resolve();
+    videoEl.addEventListener('loadeddata', () => resolve(), { once: true });
+  });
 }
 
 /**
- * Convenience wrapper matching the old demo function's call signature,
- * so pages that already call demoDescriptorFromImageData(dataUrl) can
- * switch to this with minimal changes once wired to a live video element
- * instead of a static captured frame.
+ * Captures a single descriptor from a live <video> element, retrying a
+ * few times before giving up — a single frame can easily miss a face
+ * due to motion blur or a brief bad angle.
  */
+async function captureFaceDescriptor(videoEl, attempts = 4) {
+  await loadModels();
+  await waitForVideoReady(videoEl);
+
+  const options = new faceapi.TinyFaceDetectorOptions({
+    inputSize: 512,      // larger than the default 416 — better for smaller/farther faces
+    scoreThreshold: 0.35, // more lenient than the default 0.5 — tolerates imperfect lighting
+  });
+
+  for (let i = 0; i < attempts; i++) {
+    const detection = await faceapi
+      .detectSingleFace(videoEl, options)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (detection) return Array.from(detection.descriptor);
+    await new Promise((r) => setTimeout(r, 350)); // brief pause before retrying
+  }
+  return null;
+}
+
 async function realDescriptorFromVideo(videoEl) {
   const descriptor = await captureFaceDescriptor(videoEl);
   if (!descriptor) {
-    throw new Error('No face detected. Please center your face in the frame and try again.');
+    throw new Error('No face detected after several attempts. Make sure your face is well-lit, centered, and fills most of the frame, then try again.');
   }
   return descriptor;
 }
