@@ -57,12 +57,9 @@ function wireLogout(btnId) {
 }
 
 /**
- * Placeholder face-descriptor capture (DEMO MODE — see src/services/faceMatch.js).
- * Produces a deterministic numeric array from an image data URL so the full
- * pipeline (capture -> compare -> threshold -> accept/flag) can be exercised
- * without a trained model. The ML/Computer Vision lead replaces this function
- * with a real face-api.js descriptor extraction — nothing else in the app
- * needs to change, since the descriptor shape (array of numbers) stays the same.
+ * Placeholder face-descriptor capture (DEMO MODE fallback — used only
+ * when no camera is available). See public/js/faceRecognition.js for
+ * the real face-api.js capture used whenever a camera is present.
  */
 function demoDescriptorFromImageData(dataUrl) {
   let hash = 0;
@@ -73,13 +70,38 @@ function demoDescriptorFromImageData(dataUrl) {
   return Array.from({ length: 16 }, (_, i) => Math.sin(seed * (i + 1)) * 0.5 + 0.5);
 }
 
+/**
+ * Improved geolocation capture: samples multiple readings over ~4 seconds
+ * and keeps the most accurate one, instead of trusting whatever the first
+ * (often rough, network-based) reading happens to be. Returns accuracy in
+ * meters alongside the coordinates so the UI can warn on a poor fix.
+ */
 function getGeolocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 5000 }
+
+    let best = null;
+    let watchId = null;
+    const SAMPLE_WINDOW_MS = 4000;
+
+    const finish = () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      resolve(best);
+    };
+
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const reading = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        };
+        if (!best || reading.accuracy < best.accuracy) best = reading;
+      },
+      () => { /* ignore individual errors, we may still get a later good reading */ },
+      { enableHighAccuracy: true, timeout: SAMPLE_WINDOW_MS, maximumAge: 0 }
     );
+
+    setTimeout(finish, SAMPLE_WINDOW_MS);
   });
 }
