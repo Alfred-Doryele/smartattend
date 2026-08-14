@@ -10,9 +10,9 @@ const router = express.Router();
 router.use(authenticate);
 
 // FR-3 + FR-4 + FR-8: Facial-Recognition Check-In, Anomaly Detection, Presence Verification
-// Body: { sessionId, faceDescriptor, latitude, longitude }
+// Body: { sessionId, faceDescriptor, latitude, longitude, accuracy }
 router.post('/', requireRole('student'), checkinLimiter, (req, res) => {
-  const { sessionId, faceDescriptor, latitude, longitude } = req.body;
+  const { sessionId, faceDescriptor, latitude, longitude, accuracy } = req.body;
   const studentId = req.user.id;
 
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
@@ -27,7 +27,6 @@ router.post('/', requireRole('student'), checkinLimiter, (req, res) => {
     if (existing.status === 'accepted' || existing.status === 'flagged') {
       return res.status(409).json({ error: 'You have already checked in to this session.' });
     }
-    // Previous attempt was rejected — clear it so a fresh attempt can be recorded.
     db.prepare('DELETE FROM checkins WHERE id = ?').run(existing.id);
     db.prepare('DELETE FROM anomaly_flags WHERE checkin_id = ?').run(existing.id);
   }
@@ -49,10 +48,10 @@ router.post('/', requireRole('student'), checkinLimiter, (req, res) => {
 
   db.prepare(
     `INSERT INTO checkins (id, session_id, student_id, face_match_score, face_match_passed,
-       student_latitude, student_longitude, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+       student_latitude, student_longitude, student_accuracy_meters, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(checkinId, sessionId, studentId, faceResult.score, faceResult.passed ? 1 : 0,
-    latitude ?? null, longitude ?? null, initialStatus);
+    latitude ?? null, longitude ?? null, accuracy ?? null, initialStatus);
 
   if (!faceResult.passed) {
     return res.status(200).json({
@@ -64,7 +63,8 @@ router.post('/', requireRole('student'), checkinLimiter, (req, res) => {
   }
 
   const { flagged, distance, locationVerified } = evaluateCheckin({
-    checkinId, session, studentId, faceMatch: faceResult, studentLat: latitude, studentLon: longitude,
+    checkinId, session, studentId, faceMatch: faceResult,
+    studentLat: latitude, studentLon: longitude, studentAccuracy: accuracy,
   });
 
   const finalStatus = flagged ? 'flagged' : 'accepted';
@@ -77,6 +77,7 @@ router.post('/', requireRole('student'), checkinLimiter, (req, res) => {
     faceMatchScore: faceResult.score,
     distanceFromVenueMeters: distance,
     locationVerified,
+    accuracyMeters: accuracy ?? null,
     message: flagged
       ? 'Checked in, but this check-in was flagged for lecturer review.'
       : 'Checked in successfully.',
