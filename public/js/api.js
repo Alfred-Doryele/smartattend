@@ -71,20 +71,34 @@ function demoDescriptorFromImageData(dataUrl) {
 }
 
 /**
- * Improved geolocation capture: samples multiple readings over ~4 seconds
- * and keeps the most accurate one, instead of trusting whatever the first
- * (often rough, network-based) reading happens to be. Returns accuracy in
- * meters alongside the coordinates so the UI can warn on a poor fix.
+ * Geolocation capture tuned for real-world GPS behavior:
+ *   - Samples repeatedly for up to MAX_WAIT_MS, because a GPS "cold
+ *     start" fix commonly takes 8-15 seconds — a single quick read
+ *     usually returns a rough network/cell-tower estimate instead.
+ *   - Exits EARLY the moment a genuinely good fix (<= GOOD_ENOUGH_M)
+ *     arrives, so users with a fast GPS lock aren't kept waiting.
+ *   - Always returns the best reading seen, even if it never reaches
+ *     "good" — paired with the UI's weak/fair/strong label so the
+ *     user can judge whether to retry rather than being blocked.
+ *
+ * NOTE: if accuracy stays poor (often >1000m) even outdoors after a
+ * full wait, that's almost always the device's "Approximate/Precise
+ * Location" permission being set to approximate, not a code issue —
+ * see docs/architecture-notes.md for the settings to check.
  */
 function getGeolocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve(null);
 
+    const MAX_WAIT_MS = 10000;
+    const GOOD_ENOUGH_M = 20;
     let best = null;
     let watchId = null;
-    const SAMPLE_WINDOW_MS = 4000;
+    let settled = false;
 
     const finish = () => {
+      if (settled) return;
+      settled = true;
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       resolve(best);
     };
@@ -97,11 +111,12 @@ function getGeolocation() {
           accuracy: pos.coords.accuracy,
         };
         if (!best || reading.accuracy < best.accuracy) best = reading;
+        if (best.accuracy <= GOOD_ENOUGH_M) finish();
       },
       () => { /* ignore individual errors, we may still get a later good reading */ },
-      { enableHighAccuracy: true, timeout: SAMPLE_WINDOW_MS, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: MAX_WAIT_MS, maximumAge: 0 }
     );
 
-    setTimeout(finish, SAMPLE_WINDOW_MS);
+    setTimeout(finish, MAX_WAIT_MS);
   });
 }
