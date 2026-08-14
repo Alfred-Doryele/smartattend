@@ -121,7 +121,7 @@ University of Energy and Natural Resources, Sunyani
 
 ## Status
 
-🚧 Functional scaffold — course project, not production-ready. Core flows
+🚧 Functional scaffold  course project, not production-ready. Core flows
 (auth, sessions, check-in, geofencing, anomaly flags, dashboard, reports)
 are implemented and tested. See `docs/agile/product-backlog.md` for what's
 left.
