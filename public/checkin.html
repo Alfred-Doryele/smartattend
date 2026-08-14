@@ -24,6 +24,10 @@
       <label>Select session</label>
       <select id="sessionSelect"></select>
 
+      <label style="margin-top:14px;">Or paste a session ID directly</label>
+      <input type="text" id="manualSessionId" placeholder="e.g. a11ac51e-03aa-4349-8316-924639e...">
+      <p class="helper">Use this if your lecturer or admin shared the ID directly and it isn't showing above yet.</p>
+
       <div class="face-frame" id="frame" style="margin-top:16px;">
         <video id="video" autoplay playsinline></video>
       </div>
@@ -108,13 +112,14 @@
   document.getElementById('sessionSelect').addEventListener('focus', loadSessions);
 
   document.getElementById('submitBtn').addEventListener('click', async () => {
-    const sessionId = document.getElementById('sessionSelect').value;
+    const manualId = document.getElementById('manualSessionId').value.trim();
+    const sessionId = manualId || document.getElementById('sessionSelect').value;
     const resultBox = document.getElementById('resultBox');
     const submitBtn = document.getElementById('submitBtn');
     if (!sessionId) {
       resultBox.style.display = 'block';
       resultBox.className = 'error-box';
-      resultBox.textContent = 'Please select a session.';
+      resultBox.textContent = 'Please select a session, or paste a session ID.';
       return;
     }
     const originalLabel = submitBtn.textContent;
