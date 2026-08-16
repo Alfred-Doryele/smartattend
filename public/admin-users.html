@@ -19,16 +19,39 @@
   <div class="shell">
     <div class="card">
       <div class="eyebrow">Admin</div>
-      <h2>All users</h2>
+      <h2>Create a student or lecturer account</h2>
+      <p class="helper">This creates their login directly — they never register themselves. A one-time temporary password is generated below; share it with them so they can log in and (if a student) capture their facial reference.</p>
+
+      <form id="createAccountForm">
+        <label>Full name</label>
+        <input type="text" id="newFullName" required>
+        <label>Role</label>
+        <select id="newRole">
+          <option value="student">Student</option>
+          <option value="lecturer">Lecturer</option>
+        </select>
+        <label>Index / Staff number <span style="font-weight:400;">(students)</span></label>
+        <input type="text" id="newIndexNumber" placeholder="e.g. UENR/CE/21/001">
+        <label>Email</label>
+        <input type="email" id="newEmail" required>
+        <button class="primary" type="submit">Create account</button>
+      </form>
+
+      <div class="success-box" id="createSuccessBox" style="display:none;"></div>
+      <div class="error-box" id="createErrorBox" style="display:none;"></div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Your users</div>
+      <h2>Students &amp; lecturers you've created</h2>
       <label>Filter by role</label>
       <select id="roleFilter">
         <option value="">All</option>
         <option value="student">Student</option>
         <option value="lecturer">Lecturer</option>
-        <option value="admin">Administrator</option>
       </select>
       <table style="margin-top:16px;">
-        <thead><tr><th>Name</th><th>Index/Staff No.</th><th>Email</th><th>Role</th><th>Registered</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Index/Staff No.</th><th>Email</th><th>Role</th><th>Created</th><th></th></tr></thead>
         <tbody id="usersBody"></tbody>
       </table>
     </div>
@@ -41,6 +64,31 @@
   document.getElementById('whoami').textContent = user.fullName;
 
   let allUsers = [];
+
+  document.getElementById('createAccountForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fullName = document.getElementById('newFullName').value;
+    const role = document.getElementById('newRole').value;
+    const indexNumber = document.getElementById('newIndexNumber').value;
+    const email = document.getElementById('newEmail').value;
+    const successBox = document.getElementById('createSuccessBox');
+    const errBox = document.getElementById('createErrorBox');
+    successBox.style.display = 'none';
+    errBox.style.display = 'none';
+
+    try {
+      const data = await api('/auth/create-account', { method: 'POST', body: { fullName, role, indexNumber, email } });
+      successBox.style.display = 'block';
+      successBox.innerHTML = `Account created for <strong>${data.fullName}</strong> (${data.email}).<br>
+        Temporary password: <strong>${data.temporaryPassword}</strong><br>
+        <span style="font-size:.82rem;">${data.note}</span>`;
+      document.getElementById('createAccountForm').reset();
+      loadUsers();
+    } catch (err) {
+      errBox.textContent = err.data?.error || 'Could not create account.';
+      errBox.style.display = 'block';
+    }
+  });
 
   async function loadUsers() {
     allUsers = await api('/users');
@@ -59,7 +107,7 @@
         <td>${new Date(u.created_at).toLocaleDateString()}</td>
         <td><button class="secondary" onclick="deactivate('${u.id}')">Deactivate</button></td>
       </tr>
-    `).join('') || '<tr><td colspan="6" class="helper">No users found.</td></tr>';
+    `).join('') || '<tr><td colspan="6" class="helper">No users created yet.</td></tr>';
   }
 
   document.getElementById('roleFilter').addEventListener('change', render);
