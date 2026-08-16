@@ -9,8 +9,6 @@ router.use(authenticate);
 
 // FR-2: Session Management
 // Body: { courseId, venueId? , latitude?, longitude?, accuracy?, startTime, durationMinutes, reverifyAfterMinutes? }
-// Location comes from EITHER a pre-registered venueId OR a live lat/lon from the lecturer's device
-// (Gap 1, Options A and B from the requirements discussion).
 router.post('/', requireRole('lecturer', 'admin'), (req, res) => {
   try {
     const { courseId, venueId, latitude, longitude, accuracy, startTime, durationMinutes, reverifyAfterMinutes } = req.body;
@@ -61,24 +59,27 @@ router.post('/', requireRole('lecturer', 'admin'), (req, res) => {
   }
 });
 
-// Close a session (stop accepting check-ins)
 router.patch('/:id/close', requireRole('lecturer', 'admin'), (req, res) => {
   db.prepare(`UPDATE sessions SET status = 'closed' WHERE id = ?`).run(req.params.id);
   res.json({ id: req.params.id, status: 'closed' });
 });
 
-// All currently-open sessions across every course — a student can check
-// in to any open session (checkins.js never requires enrollment), so this
-// list should match that reality rather than filtering by an enrollment
-// step the app never actually asks anyone to complete.
+// All currently-open sessions belonging to the student's own institution
+// (same admin who created their account) — a student can check in to any
+// open session within their org without a separate enrollment step, but
+// must never see another admin's institution's sessions.
 router.get('/mine/open', requireRole('student'), (req, res) => {
+  const student = db.prepare('SELECT created_by FROM users WHERE id = ?').get(req.user.id);
+  const orgAdminId = student ? student.created_by : null;
+  if (!orgAdminId) return res.json([]);
+
   const rows = db.prepare(`
     SELECT s.id, s.start_time, s.end_time, s.status, co.code, co.title
     FROM sessions s
     JOIN courses co ON co.id = s.course_id
-    WHERE s.status = 'open'
+    WHERE co.owner_admin_id = ? AND s.status = 'open'
     ORDER BY s.start_time DESC
-  `).all();
+  `).all(orgAdminId);
   res.json(rows);
 });
 
@@ -105,7 +106,6 @@ router.get('/:id/dashboard', requireRole('lecturer', 'admin'), (req, res) => {
   res.json({ session, checkins, flags });
 });
 
-// Resolve a flag — lecturer makes the final call
 router.patch('/flags/:flagId/resolve', requireRole('lecturer', 'admin'), (req, res) => {
   const { resolution } = req.body;
   if (!['confirmed_present', 'marked_absent'].includes(resolution)) {
