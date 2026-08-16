@@ -4,28 +4,60 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { v4: uuid } = require('uuid');
 const db = require('../db');
-const { JWT_SECRET } = require('../middleware/auth');
+const { JWT_SECRET, authenticate, requireRole } = require('../middleware/auth');
 const { loginLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
-// FR-1: User Registration & Profile Management
-// Body: { fullName, indexNumber, email, password, role, faceDescriptor }
-router.post('/register', (req, res) => {
-  const { fullName, indexNumber, email, password, role, faceDescriptor } = req.body;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  if (!fullName || !email || !password || !role) {
-    return res.status(400).json({ error: 'fullName, email, password, and role are required.' });
+// Public self-registration — ADMINISTRATOR ONLY.
+// Students and lecturers never register themselves; an admin creates
+// their account (see POST /auth/create-account below) and hands them
+// their login details directly.
+router.post('/register', (req, res) => {
+  const { fullName, email, password } = req.body;
+
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ error: 'fullName, email, and password are required.' });
   }
-  if (!['student', 'lecturer', 'admin'].includes(role)) {
-    return res.status(400).json({ error: 'role must be student, lecturer, or admin.' });
-  }
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!EMAIL_RE.test(email)) {
     return res.status(400).json({ error: 'Please provide a valid email address.' });
   }
   if (password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  }
+
+  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  if (existing) {
+    return res.status(409).json({ error: 'An account with this email already exists. Please log in instead.' });
+  }
+
+  const id = uuid();
+  const passwordHash = bcrypt.hashSync(password, 10);
+
+  db.prepare(
+    `INSERT INTO users (id, full_name, email, password_hash, role, created_by) VALUES (?, ?, ?, ?, 'admin', NULL)`
+  ).run(id, fullName, email, passwordHash);
+
+  res.status(201).json({ id, fullName, email, role: 'admin' });
+});
+
+// Admin creates a student or lecturer account under their own institution.
+// A random temporary password is generated and returned ONCE in the
+// response — the admin is responsible for relaying it to the person
+// (this is demo-appropriate; a production system would email it instead).
+router.post('/create-account', authenticate, requireRole('admin'), (req, res) => {
+  const { fullName, role, indexNumber, email } = req.body;
+
+  if (!fullName || !role || !email) {
+    return res.status(400).json({ error: 'fullName, role, and email are required.' });
+  }
+  if (!['student', 'lecturer'].includes(role)) {
+    return res.status(400).json({ error: 'role must be student or lecturer.' });
+  }
+  if (!EMAIL_RE.test(email)) {
+    return res.status(400).json({ error: 'Please provide a valid email address.' });
   }
 
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
@@ -40,18 +72,22 @@ router.post('/register', (req, res) => {
   }
 
   const id = uuid();
-  const passwordHash = bcrypt.hashSync(password, 10);
+  const tempPassword = crypto.randomBytes(6).toString('base64url'); // short, readable-ish, random
+  const passwordHash = bcrypt.hashSync(tempPassword, 10);
 
   db.prepare(
-    `INSERT INTO users (id, full_name, index_number, email, password_hash, role, face_descriptor)
+    `INSERT INTO users (id, full_name, index_number, email, password_hash, role, created_by)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, fullName, indexNumber || null, email, passwordHash, role,
-    faceDescriptor ? JSON.stringify(faceDescriptor) : null);
+  ).run(id, fullName, indexNumber || null, email, passwordHash, role, req.user.id);
 
-  res.status(201).json({ id, fullName, email, role });
+  res.status(201).json({
+    id, fullName, email, role,
+    temporaryPassword: tempPassword,
+    note: 'Share this password with the person directly — it will not be shown again. They should log in with it (no registration needed on their end).',
+  });
 });
 
-// Login
+// Login — available to all roles
 router.post('/login', loginLimiter, (req, res) => {
   const { email, password } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
@@ -120,8 +156,7 @@ router.post('/password-reset/confirm', (req, res) => {
   res.json({ message: 'Password updated. You can now log in with your new password.' });
 });
 
-// Capture/update the caller's stored facial reference (used right after registration)
-const { authenticate } = require('../middleware/auth');
+// Capture/update the caller's stored facial reference (used right after first login)
 router.patch('/me/face', authenticate, (req, res) => {
   const { faceDescriptor } = req.body;
   if (!Array.isArray(faceDescriptor)) {
