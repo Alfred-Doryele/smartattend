@@ -1,5 +1,17 @@
 -- SmartAttend Database Schema
 -- Corresponds to SRS sections FR-1, FR-2, FR-3, FR-4, FR-6, FR-7
+--
+-- MULTI-TENANCY MODEL:
+--   Only an Administrator can self-register through the public form.
+--   An admin then creates student and lecturer accounts directly and
+--   hands them their login credentials — those accounts never see a
+--   registration screen, only a login screen.
+--   Every student/lecturer account records which admin created it
+--   (users.created_by). Courses and venues record which admin they
+--   belong to (owner_admin_id / admin_id). Every list a user sees —
+--   students, lecturers, courses, venues, sessions — is filtered down
+--   to "belongs to the same admin as me" so two admins' institutions
+--   never see or affect each other's data.
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -9,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('student', 'lecturer', 'admin')),
   face_descriptor TEXT,                 -- JSON array: stored facial embedding (see src/services/faceMatch.js)
+  created_by TEXT REFERENCES users(id), -- the admin who created this account; NULL for a self-registered admin
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -16,7 +29,8 @@ CREATE TABLE IF NOT EXISTS courses (
   id TEXT PRIMARY KEY,
   code TEXT UNIQUE NOT NULL,            -- e.g. "CENG 302"
   title TEXT NOT NULL,
-  lecturer_id TEXT NOT NULL REFERENCES users(id)
+  lecturer_id TEXT NOT NULL REFERENCES users(id),
+  owner_admin_id TEXT REFERENCES users(id)  -- which admin's institution this course belongs to
 );
 
 CREATE TABLE IF NOT EXISTS enrollments (
@@ -32,7 +46,8 @@ CREATE TABLE IF NOT EXISTS venues (
   name TEXT NOT NULL,                   -- e.g. "Lecture Hall 3"
   latitude REAL NOT NULL,
   longitude REAL NOT NULL,
-  radius_meters REAL NOT NULL DEFAULT 80
+  radius_meters REAL NOT NULL DEFAULT 80,
+  admin_id TEXT REFERENCES users(id)    -- which admin's institution this venue belongs to
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -94,4 +109,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_course ON sessions(course_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_course ON enrollments(course_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_created_by ON users(created_by);
+CREATE INDEX IF NOT EXISTS idx_courses_owner_admin ON courses(owner_admin_id);
+CREATE INDEX IF NOT EXISTS idx_venues_admin ON venues(admin_id);
 CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
