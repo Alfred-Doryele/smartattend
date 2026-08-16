@@ -15,9 +15,23 @@ router.post('/', requireRole('student'), checkinLimiter, (req, res) => {
   const { sessionId, faceDescriptor, latitude, longitude, accuracy } = req.body;
   const studentId = req.user.id;
 
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+  const session = db.prepare(
+    `SELECT s.*, co.owner_admin_id FROM sessions s JOIN courses co ON co.id = s.course_id WHERE s.id = ?`
+  ).get(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found. It may have been reset — ask your lecturer for a new session ID.' });
   if (session.status !== 'open') return res.status(400).json({ error: 'This session is not open for check-in.' });
+
+  // Multi-tenancy: a student can only check in to a session belonging to
+  // their own institution (the admin who created their account) — this
+  // stops a session ID from one admin's org being usable by a student
+  // who belongs to a different admin's org, even if they somehow have it.
+  const student = db.prepare('SELECT * FROM users WHERE id = ?').get(studentId);
+  if (!student) {
+    return res.status(401).json({ error: 'Your account could not be found. Please log out and log back in.' });
+  }
+  if (student.created_by !== session.owner_admin_id) {
+    return res.status(403).json({ error: 'This session does not belong to your institution.' });
+  }
 
   // A student can retry after a REJECTED attempt (face mismatch) — only an
   // ACCEPTED or FLAGGED check-in actually blocks further attempts, since
@@ -31,10 +45,6 @@ router.post('/', requireRole('student'), checkinLimiter, (req, res) => {
     db.prepare('DELETE FROM anomaly_flags WHERE checkin_id = ?').run(existing.id);
   }
 
-  const student = db.prepare('SELECT * FROM users WHERE id = ?').get(studentId);
-  if (!student) {
-    return res.status(401).json({ error: 'Your account could not be found. Please log out and log back in.' });
-  }
   if (!student.face_descriptor) {
     return res.status(400).json({ error: 'No facial reference on file. Please complete registration first.' });
   }
