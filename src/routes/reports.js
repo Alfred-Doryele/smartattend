@@ -6,10 +6,26 @@ const { authenticate, requireRole } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticate);
 
+/**
+ * Multi-tenancy guard: confirms the requesting lecturer/admin's course
+ * actually belongs to their own institution before returning any data.
+ * Without this, a lecturer could type any courseId into the URL and
+ * pull another admin's institution's attendance report.
+ */
+function assertOwnsCourse(req, courseId) {
+  const course = db.prepare('SELECT * FROM courses WHERE id = ?').get(courseId);
+  if (!course) return null;
+  const orgAdminId = req.user.role === 'admin'
+    ? req.user.id
+    : db.prepare('SELECT created_by FROM users WHERE id = ?').get(req.user.id)?.created_by;
+  if (course.owner_admin_id !== orgAdminId) return null;
+  return course;
+}
+
 // FR-6: Reporting & Analytics
 // Based on actual check-ins for the course's sessions — not formal
-// enrollment — since a student can check in to any open session
-// without a separate enrollment step in the current flow.
+// enrollment — since a student can check in to any open session in
+// their institution without a separate enrollment step in the current flow.
 function getAttendanceRows(courseId) {
   return db.prepare(`
     SELECT u.id AS student_id, u.full_name, u.index_number,
@@ -25,10 +41,15 @@ function getAttendanceRows(courseId) {
 }
 
 router.get('/courses/:courseId/attendance', requireRole('lecturer', 'admin'), (req, res) => {
+  const course = assertOwnsCourse(req, req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found in your institution.' });
   res.json(getAttendanceRows(req.params.courseId));
 });
 
 router.get('/courses/:courseId/attendance.csv', requireRole('lecturer', 'admin'), (req, res) => {
+  const course = assertOwnsCourse(req, req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found in your institution.' });
+
   const rows = getAttendanceRows(req.params.courseId);
   const header = 'Full Name,Index Number,Total Sessions,Attended,Flagged\n';
   const body = rows.map(r => `${r.full_name},${r.index_number || ''},${r.total_sessions},${r.attended},${r.flagged}`).join('\n');
@@ -39,7 +60,9 @@ router.get('/courses/:courseId/attendance.csv', requireRole('lecturer', 'admin')
 });
 
 router.get('/courses/:courseId/attendance.pdf', requireRole('lecturer', 'admin'), (req, res) => {
-  const course = db.prepare('SELECT * FROM courses WHERE id = ?').get(req.params.courseId);
+  const course = assertOwnsCourse(req, req.params.courseId);
+  if (!course) return res.status(404).json({ error: 'Course not found in your institution.' });
+
   const rows = getAttendanceRows(req.params.courseId);
 
   res.setHeader('Content-Type', 'application/pdf');
