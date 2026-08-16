@@ -28,8 +28,11 @@
 
       <p class="helper" style="margin-top:18px;">
         <a href="#" id="showForgot">Forgot password?</a>
+      </p>
+      <p class="helper" style="margin-top:6px;">
+        Are you a student or lecturer? Your administrator creates your account and gives you your login details directly — you don't need to register.
         &nbsp;·&nbsp;
-        No account yet? <a href="#" id="showRegister">Register here</a>
+        <a href="#" id="showRegister">Registering as an Administrator?</a>
       </p>
     </div>
 
@@ -59,24 +62,16 @@
 
     <div class="card" id="registerCard" style="display:none;">
       <div class="eyebrow">Register</div>
-      <h2>Create your account</h2>
+      <h2>Create an Administrator account</h2>
+      <p class="helper">Only administrators register through this form. As an admin, you'll be able to create accounts for your own students and lecturers and hand them their login details directly — see "Manage users" after you sign in.</p>
       <form id="registerForm">
         <label>Full name</label>
         <input type="text" id="regName" required>
-        <label>Role</label>
-        <select id="regRole">
-          <option value="student">Student</option>
-          <option value="lecturer">Lecturer</option>
-          <option value="admin">Administrator</option>
-        </select>
-        <label>Index / Staff number <span style="font-weight:400;">(students)</span></label>
-        <input type="text" id="regIndex" placeholder="e.g. UENR/CE/21/001">
         <label>Email</label>
         <input type="email" id="regEmail" required>
         <label>Password</label>
         <input type="password" id="regPassword" required minlength="6">
-        <button class="primary" type="submit">Create account</button>
-        <p class="helper">Students: you'll capture your facial reference right after registering — this becomes what future check-ins are matched against.</p>
+        <button class="primary" type="submit">Create administrator account</button>
         <div class="error-box" id="registerError" style="display:none;"></div>
       </form>
     </div>
@@ -119,18 +114,15 @@
   document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const fullName = document.getElementById('regName').value;
-    const role = document.getElementById('regRole').value;
-    const indexNumber = document.getElementById('regIndex').value;
     const email = document.getElementById('regEmail').value;
     const password = document.getElementById('regPassword').value;
     const errBox = document.getElementById('registerError');
     errBox.style.display = 'none';
     try {
-      await api('/auth/register', { method: 'POST', body: { fullName, role, indexNumber, email, password } });
+      await api('/auth/register', { method: 'POST', body: { fullName, email, password } });
       const data = await api('/auth/login', { method: 'POST', body: { email, password } });
       setSession(data.token, data.user);
-      if (data.user.role === 'student') window.location.href = '/register-face.html';
-      else window.location.href = '/dashboard.html';
+      window.location.href = '/dashboard.html';
     } catch (err) {
       errBox.textContent = err.data?.error || 'Registration failed.';
       errBox.style.display = 'block';
