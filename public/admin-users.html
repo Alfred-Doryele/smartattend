@@ -20,7 +20,7 @@
     <div class="card">
       <div class="eyebrow">Admin</div>
       <h2>Create an account</h2>
-      <p class="helper">Their login details are emailed automatically. You can also view or copy the password below anytime.</p>
+      <p class="helper">They log in with their ID and password below — not their email. Details are emailed automatically when possible.</p>
 
       <form id="createAccountForm">
         <label>Full name</label>
@@ -30,9 +30,9 @@
           <option value="student">Student</option>
           <option value="lecturer">Lecturer</option>
         </select>
-        <label>Index / Staff ID</label>
-        <input type="text" id="newIndexNumber" placeholder="e.g. UENR/CE/21/001">
-        <label>Email</label>
+        <label>ID (index / staff number) — used to log in</label>
+        <input type="text" id="newIndexNumber" placeholder="e.g. UENR/CE/21/001" required>
+        <label>Email — where login details are sent</label>
         <input type="email" id="newEmail" required>
         <button class="primary" type="submit">Create account</button>
       </form>
@@ -50,7 +50,7 @@
         <option value="lecturer">Lecturer</option>
       </select>
       <table style="margin-top:16px;">
-        <thead><tr><th>Name</th><th>ID</th><th>Email</th><th>Role</th><th>Password</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Login ID</th><th>Email</th><th>Role</th><th>Password</th><th></th></tr></thead>
         <tbody id="usersBody"></tbody>
       </table>
     </div>
@@ -78,7 +78,8 @@
     try {
       const data = await api('/auth/create-account', { method: 'POST', body: { fullName, role, indexNumber, email } });
       successBox.style.display = 'block';
-      successBox.innerHTML = `<strong>${data.fullName}</strong> created. Password: <strong>${data.temporaryPassword}</strong><br>
+      successBox.innerHTML = `<strong>${data.fullName}</strong> created.<br>
+        Login ID: <strong>${data.indexNumber}</strong> &nbsp;·&nbsp; Password: <strong>${data.temporaryPassword}</strong><br>
         <span style="font-size:.82rem;">${data.note}</span>`;
       document.getElementById('createAccountForm').reset();
       loadUsers();
