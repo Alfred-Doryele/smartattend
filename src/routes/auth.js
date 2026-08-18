@@ -6,15 +6,14 @@ const { v4: uuid } = require('uuid');
 const db = require('../db');
 const { JWT_SECRET, authenticate, requireRole } = require('../middleware/auth');
 const { loginLimiter } = require('../middleware/rateLimit');
+const { sendEmail } = require('../services/emailService');
 
 const router = express.Router();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Public self-registration — ADMINISTRATOR ONLY.
-// Students and lecturers never register themselves; an admin creates
-// their account (see POST /auth/create-account below) and hands them
-// their login details directly.
+// Public self-registration — Administrator only. Students and lecturers
+// never register themselves; an admin creates their account below.
 router.post('/register', (req, res) => {
   const { fullName, email, password } = req.body;
 
@@ -44,10 +43,10 @@ router.post('/register', (req, res) => {
 });
 
 // Admin creates a student or lecturer account under their own institution.
-// A random temporary password is generated and returned ONCE in the
-// response — the admin is responsible for relaying it to the person
-// (this is demo-appropriate; a production system would email it instead).
-router.post('/create-account', authenticate, requireRole('admin'), (req, res) => {
+// The generated password is emailed automatically when SMTP is configured
+// (see src/services/emailService.js); it's also stored and returned so
+// the admin can see/retrieve it from Manage Users either way.
+router.post('/create-account', authenticate, requireRole('admin'), async (req, res) => {
   const { fullName, role, indexNumber, email } = req.body;
 
   if (!fullName || !role || !email) {
@@ -72,18 +71,27 @@ router.post('/create-account', authenticate, requireRole('admin'), (req, res) =>
   }
 
   const id = uuid();
-  const tempPassword = crypto.randomBytes(6).toString('base64url'); // short, readable-ish, random
+  const tempPassword = crypto.randomBytes(6).toString('base64url');
   const passwordHash = bcrypt.hashSync(tempPassword, 10);
 
   db.prepare(
-    `INSERT INTO users (id, full_name, index_number, email, password_hash, role, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, fullName, indexNumber || null, email, passwordHash, role, req.user.id);
+    `INSERT INTO users (id, full_name, index_number, email, password_hash, temp_password, role, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, fullName, indexNumber || null, email, passwordHash, tempPassword, role, req.user.id);
+
+  const emailResult = await sendEmail({
+    to: email,
+    subject: 'Your SmartAttend login details',
+    text: `Hi ${fullName},\n\nAn account has been created for you on SmartAttend.\n\nLogin ID (email): ${email}\nTemporary password: ${tempPassword}\n\nLog in at your institution's SmartAttend link and use these details. You can change your password anytime using "Forgot password" on the login page.\n\n— SmartAttend`,
+  });
 
   res.status(201).json({
     id, fullName, email, role,
     temporaryPassword: tempPassword,
-    note: 'Share this password with the person directly — it will not be shown again. They should log in with it (no registration needed on their end).',
+    emailed: emailResult.sent,
+    note: emailResult.sent
+      ? 'Login details were emailed to this person automatically.'
+      : 'Email delivery is not configured, so this was not emailed automatically — share the password below directly. It also stays visible under Manage Users if needed later.',
   });
 });
 
@@ -114,7 +122,7 @@ router.post('/login', loginLimiter, (req, res) => {
 });
 
 // --- Password reset flow ---
-router.post('/password-reset/request', loginLimiter, (req, res) => {
+router.post('/password-reset/request', loginLimiter, async (req, res) => {
   const { email } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
@@ -127,8 +135,18 @@ router.post('/password-reset/request', loginLimiter, (req, res) => {
       `INSERT INTO password_resets (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)`
     ).run(uuid(), user.id, tokenHash, expiresAt);
 
-    console.log(`[password-reset] token for ${email}: ${rawToken} (expires ${expiresAt})`);
-    return res.json({ message: 'If that email is registered, a reset link has been sent.', devToken: rawToken });
+    const emailResult = await sendEmail({
+      to: email,
+      subject: 'Reset your SmartAttend password',
+      text: `Hi ${user.full_name},\n\nUse this code to reset your SmartAttend password (expires in 30 minutes):\n\n${rawToken}\n\nIf you didn't request this, you can ignore this email.\n\n— SmartAttend`,
+    });
+
+    return res.json({
+      message: emailResult.sent
+        ? 'A reset code has been emailed to you.'
+        : 'If that email is registered, a reset code has been generated.',
+      devToken: emailResult.sent ? undefined : rawToken,
+    });
   }
 
   res.json({ message: 'If that email is registered, a reset link has been sent.' });
@@ -150,13 +168,13 @@ router.post('/password-reset/confirm', (req, res) => {
   }
 
   const passwordHash = bcrypt.hashSync(newPassword, 10);
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, reset.user_id);
+  db.prepare('UPDATE users SET password_hash = ?, temp_password = NULL WHERE id = ?').run(passwordHash, reset.user_id);
   db.prepare('UPDATE password_resets SET used = 1 WHERE id = ?').run(reset.id);
 
   res.json({ message: 'Password updated. You can now log in with your new password.' });
 });
 
-// Capture/update the caller's stored facial reference (used right after first login)
+// Capture/update the caller's stored facial reference
 router.patch('/me/face', authenticate, (req, res) => {
   const { faceDescriptor } = req.body;
   if (!Array.isArray(faceDescriptor)) {
