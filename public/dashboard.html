@@ -19,8 +19,8 @@
   <div id="adminNav" style="display:none; background:#F6F7FB; border-bottom:1px solid var(--border); padding:10px 24px;">
     <div class="shell" style="padding:0; display:flex; gap:20px; align-items:center;">
       <span style="font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700;">Admin</span>
-      <a href="/venues.html" style="color:var(--navy-950); font-size:.88rem; text-decoration:none; font-weight:600;">Manage venues</a>
-      <a href="/admin-users.html" style="color:var(--navy-950); font-size:.88rem; text-decoration:none; font-weight:600;">Manage users</a>
+      <a href="/venues.html" style="color:var(--navy-950); font-size:.88rem; text-decoration:none; font-weight:600;">Venues</a>
+      <a href="/admin-users.html" style="color:var(--navy-950); font-size:.88rem; text-decoration:none; font-weight:600;">Users</a>
     </div>
   </div>
 
@@ -48,9 +48,9 @@
 
           <label>Venue</label>
           <select id="venueSelect">
-            <option value="">Use my current location instead…</option>
+            <option value="">Capture my location instead…</option>
           </select>
-          <p class="helper" id="venueHelper">This snapshot becomes the reference point student check-ins are geofenced against.</p>
+          <p class="helper" id="venueHelper">Sets the check-in reference point.</p>
 
           <div id="liveLocationBlock">
             <button class="secondary" type="button" id="grabLocation">Capture my location</button>
@@ -59,7 +59,7 @@
 
           <label>Duration (minutes)</label>
           <input type="number" id="sessionDuration" value="60">
-          <label>Re-verify students after (minutes)</label>
+          <label>Re-verify after (minutes)</label>
           <input type="number" id="sessionReverify" value="30">
           <button class="primary" type="submit">Open session</button>
         </form>
@@ -76,11 +76,11 @@
 
       <h3 style="margin-top:24px;">Check-ins</h3>
       <table id="checkinsTable">
-        <thead><tr><th>Student</th><th>Time</th><th>Face score</th><th>Distance (m)</th><th>Accuracy (±m)</th><th>Status</th></tr></thead>
+        <thead><tr><th>Student</th><th>Time</th><th>Score</th><th>Dist. (m)</th><th>±m</th><th>Status</th></tr></thead>
         <tbody></tbody>
       </table>
 
-      <h3 style="margin-top:24px;">Flagged for review</h3>
+      <h3 style="margin-top:24px;">Flagged</h3>
       <table id="flagsTable">
         <thead><tr><th>Student</th><th>Reason</th><th>Detail</th><th>Action</th></tr></thead>
         <tbody></tbody>
@@ -106,28 +106,24 @@
   const user = requireAuth(['lecturer', 'admin']);
   wireLogout('logoutBtn');
   document.getElementById('whoami').textContent = `${user.fullName} · ${user.role}`;
-  if (user.role === 'admin') {
-    document.getElementById('adminNav').style.display = 'block';
-  }
+  if (user.role === 'admin') document.getElementById('adminNav').style.display = 'block';
 
   let capturedLoc = null;
 
   async function loadCourses() {
     const courses = await api('/users/courses');
-    const select = document.getElementById('sessionCourse');
-    select.innerHTML = courses.map(c => `<option value="${c.id}">${c.code} — ${c.title}</option>`).join('');
+    document.getElementById('sessionCourse').innerHTML =
+      courses.map(c => `<option value="${c.id}">${c.code} — ${c.title}</option>`).join('');
   }
   loadCourses();
 
   async function loadVenues() {
     try {
       const venues = await api('/users/venues');
-      const select = document.getElementById('venueSelect');
-      const liveOption = '<option value="">Use my current location instead…</option>';
-      select.innerHTML = liveOption + venues.map(v =>
-        `<option value="${v.id}">${v.name} (±${v.radius_meters}m radius)</option>`
-      ).join('');
-    } catch (err) { /* venues are optional — silently proceed with live-location only */ }
+      document.getElementById('venueSelect').innerHTML =
+        '<option value="">Capture my location instead…</option>' +
+        venues.map(v => `<option value="${v.id}">${v.name} (±${v.radius_meters}m)</option>`).join('');
+    } catch (err) {}
   }
   loadVenues();
 
@@ -135,8 +131,8 @@
     const usingVenue = !!e.target.value;
     document.getElementById('liveLocationBlock').style.display = usingVenue ? 'none' : 'block';
     document.getElementById('venueHelper').textContent = usingVenue
-      ? 'Using this pre-registered venue as the fixed reference point — no GPS capture needed.'
-      : 'This snapshot becomes the reference point student check-ins are geofenced against.';
+      ? 'Using this fixed venue — no GPS capture needed.'
+      : 'Sets the check-in reference point.';
   });
 
   document.getElementById('courseForm').addEventListener('submit', async (e) => {
@@ -146,7 +142,7 @@
     try {
       await api('/users/courses', { method: 'POST', body: { code, title, lecturerId: user.id } });
       document.getElementById('courseSuccess').style.display = 'block';
-      document.getElementById('courseSuccess').textContent = `Course "${code}" created.`;
+      document.getElementById('courseSuccess').textContent = `"${code}" created.`;
       loadCourses();
       loadReportCourses();
     } catch (err) { alert(err.data?.error || 'Failed to create course.'); }
@@ -154,19 +150,16 @@
 
   document.getElementById('grabLocation').addEventListener('click', async () => {
     const btn = document.getElementById('grabLocation');
-    const originalLabel = btn.textContent;
+    const original = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Capturing (a few seconds)…';
+    btn.textContent = 'Capturing…';
     const loc = await getGeolocation();
     btn.disabled = false;
-    btn.textContent = originalLabel;
+    btn.textContent = original;
     if (!loc) { document.getElementById('locResult').textContent = 'Could not get location.'; return; }
     capturedLoc = loc;
-    const accNote = loc.accuracy > 100
-      ? ` — ⚠ weak signal, consider recapturing near a window`
-      : loc.accuracy > 30 ? ` — fair signal` : ` — strong signal`;
-    document.getElementById('locResult').textContent =
-      `Captured: ${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)} (±${Math.round(loc.accuracy)}m${accNote})`;
+    const quality = loc.accuracy > 100 ? '⚠ weak' : loc.accuracy > 30 ? 'fair' : 'strong';
+    document.getElementById('locResult').textContent = `±${Math.round(loc.accuracy)}m (${quality})`;
   });
 
   document.getElementById('sessionForm').addEventListener('submit', async (e) => {
@@ -175,13 +168,12 @@
     const venueId = document.getElementById('venueSelect').value;
     const durationMinutes = Number(document.getElementById('sessionDuration').value);
     const reverifyAfterMinutes = Number(document.getElementById('sessionReverify').value);
-
     const body = { courseId, startTime: new Date().toISOString(), durationMinutes, reverifyAfterMinutes };
 
     if (venueId) {
       body.venueId = venueId;
     } else {
-      if (!capturedLoc) { alert('Capture your location first — this sets the venue for geofencing — or pick a pre-registered venue above.'); return; }
+      if (!capturedLoc) { alert('Capture your location or pick a venue first.'); return; }
       body.latitude = capturedLoc.latitude;
       body.longitude = capturedLoc.longitude;
       body.accuracy = capturedLoc.accuracy;
@@ -191,7 +183,7 @@
       const data = await api('/sessions', { method: 'POST', body });
       const box = document.getElementById('sessionSuccess');
       box.style.display = 'block';
-      box.innerHTML = `Session open. Share this ID with students: <strong>${data.id}</strong>`;
+      box.innerHTML = `Session open. Share this ID: <strong>${data.id}</strong>`;
       document.getElementById('dashSessionId').value = data.id;
       loadDashboard(data.id);
     } catch (err) { alert(err.data?.error || 'Failed to open session.'); }
@@ -225,11 +217,11 @@
           <td>${f.reason}</td>
           <td>${f.detail || ''}</td>
           <td>
-            <button class="secondary" onclick="resolveFlag('${f.id}','confirmed_present','${sessionId}')">Confirm present</button>
-            <button class="secondary" onclick="resolveFlag('${f.id}','marked_absent','${sessionId}')">Mark absent</button>
+            <button class="secondary" onclick="resolveFlag('${f.id}','confirmed_present','${sessionId}')">Confirm</button>
+            <button class="secondary" onclick="resolveFlag('${f.id}','marked_absent','${sessionId}')">Absent</button>
           </td>
         </tr>
-      `).join('') || '<tr><td colspan="4" class="helper">No flags right now.</td></tr>';
+      `).join('') || '<tr><td colspan="4" class="helper">No flags.</td></tr>';
     } catch (err) { alert(err.data?.error || 'Could not load dashboard.'); }
   }
 
@@ -240,7 +232,6 @@
     } catch (err) { alert(err.data?.error || 'Could not resolve flag.'); }
   }
 
-  // --- Reports section ---
   let attendanceChart = null;
 
   async function loadReportCourses() {
@@ -262,16 +253,12 @@
       if (attendanceChart) attendanceChart.destroy();
       attendanceChart = new Chart(ctx, {
         type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            { label: 'Attended', data: attended, backgroundColor: '#0F9D8C' },
-            { label: 'Flagged', data: flagged, backgroundColor: '#E3A008' },
-          ],
-        },
+        data: { labels, datasets: [
+          { label: 'Attended', data: attended, backgroundColor: '#0F9D8C' },
+          { label: 'Flagged', data: flagged, backgroundColor: '#E3A008' },
+        ]},
         options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
       });
-
       setupDownload('csvLink', `/reports/courses/${courseId}/attendance.csv`, `attendance-${courseId}.csv`);
       setupDownload('pdfLink', `/reports/courses/${courseId}/attendance.pdf`, `attendance-${courseId}.pdf`);
     } catch (err) { alert(err.data?.error || 'Could not load report.'); }
