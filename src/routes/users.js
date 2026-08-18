@@ -6,31 +6,22 @@ const { authenticate, requireRole } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticate);
 
-/**
- * Multi-tenancy helper: resolves which admin's institution a given user
- * belongs to. An admin belongs to themselves; a student/lecturer belongs
- * to whichever admin's account created them (users.created_by).
- * Every list in this file (users, courses, venues) is filtered down to
- * "same org admin as me" so two admins' institutions never see or
- * affect each other's data.
- */
 function getOrgAdminId(user) {
   if (user.role === 'admin') return user.id;
   const row = db.prepare('SELECT created_by FROM users WHERE id = ?').get(user.id);
   return row ? row.created_by : null;
 }
 
-// Admin: list only the students/lecturers THEY created
+// Admin: list only the students/lecturers THEY created, including the
+// retrievable temp_password (NULL once that person has reset it).
 router.get('/', requireRole('admin'), (req, res) => {
   const rows = db.prepare(
-    'SELECT id, full_name, index_number, email, role, created_at FROM users WHERE created_by = ? ORDER BY full_name'
+    'SELECT id, full_name, index_number, email, role, temp_password, created_at FROM users WHERE created_by = ? ORDER BY full_name'
   ).all(req.user.id);
   res.json(rows);
 });
 
 router.patch('/:id/deactivate', requireRole('admin'), (req, res) => {
-  // Only allow deactivating accounts this admin actually created —
-  // prevents one admin from touching another admin's institution.
   const target = db.prepare('SELECT created_by FROM users WHERE id = ?').get(req.params.id);
   if (!target || target.created_by !== req.user.id) {
     return res.status(403).json({ error: 'You can only manage accounts you created.' });
@@ -39,7 +30,6 @@ router.patch('/:id/deactivate', requireRole('admin'), (req, res) => {
   res.json({ id: req.params.id, deactivated: true });
 });
 
-// Venues — scoped to the caller's org admin
 router.post('/venues', requireRole('admin'), (req, res) => {
   const { name, latitude, longitude, radiusMeters } = req.body;
   if (!name || latitude == null || longitude == null) {
@@ -57,7 +47,6 @@ router.get('/venues', authenticate, (req, res) => {
   res.json(db.prepare('SELECT * FROM venues WHERE admin_id = ?').all(orgAdminId));
 });
 
-// Courses — scoped to the caller's org admin
 router.post('/courses', requireRole('admin', 'lecturer'), (req, res) => {
   const { code, title, lecturerId } = req.body;
   if (!code || !title) return res.status(400).json({ error: 'code and title are required.' });
