@@ -18,8 +18,8 @@
       <h2 id="formTitle">Welcome back</h2>
 
       <form id="loginForm">
-        <label>Email</label>
-        <input type="email" id="loginEmail" required placeholder="you@uenr.edu.gh">
+        <label>ID (students &amp; lecturers) or email (admins)</label>
+        <input type="text" id="loginIdentifier" required placeholder="e.g. UENR/CE/21/001">
         <label>Password</label>
         <input type="password" id="loginPassword" required placeholder="••••••••">
         <button class="primary" type="submit">Sign in</button>
@@ -30,7 +30,7 @@
         <a href="#" id="showForgot">Forgot password?</a>
       </p>
       <p class="helper" style="margin-top:6px;">
-        Students &amp; lecturers: your administrator sends you login details directly.
+        Students &amp; lecturers: your administrator emails you your ID and password.
         &nbsp;<a href="#" id="showRegister">Register as an Administrator</a>
       </p>
     </div>
@@ -40,7 +40,7 @@
       <h2>Forgot your password?</h2>
 
       <form id="forgotRequestForm">
-        <label>Email</label>
+        <label>Email (the one login details were sent to)</label>
         <input type="email" id="forgotEmail" required placeholder="you@uenr.edu.gh">
         <button class="primary" type="submit">Send reset code</button>
         <div class="error-box" id="forgotRequestError" style="display:none;"></div>
@@ -91,12 +91,12 @@
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
+    const identifier = document.getElementById('loginIdentifier').value;
     const password = document.getElementById('loginPassword').value;
     const errBox = document.getElementById('loginError');
     errBox.style.display = 'none';
     try {
-      const data = await api('/auth/login', { method: 'POST', body: { email, password } });
+      const data = await api('/auth/login', { method: 'POST', body: { identifier, password } });
       setSession(data.token, data.user);
       if (data.user.role === 'student') {
         window.location.href = data.user.hasFaceReference ? '/checkin.html' : '/register-face.html';
@@ -118,7 +118,7 @@
     errBox.style.display = 'none';
     try {
       await api('/auth/register', { method: 'POST', body: { fullName, email, password } });
-      const data = await api('/auth/login', { method: 'POST', body: { email, password } });
+      const data = await api('/auth/login', { method: 'POST', body: { identifier: email, password } });
       setSession(data.token, data.user);
       window.location.href = '/dashboard.html';
     } catch (err) {
@@ -152,9 +152,8 @@
     errBox.style.display = 'none';
     try {
       await api('/auth/password-reset/confirm', { method: 'POST', body: { token, newPassword } });
-      alert('Password updated. Sign in with your new password.');
+      alert('Password updated. Sign in with your ID and new password.');
       document.getElementById('forgotCard').style.display = 'none';
-      document.getElementById('loginEmail').value = document.getElementById('forgotEmail').value;
     } catch (err) {
       errBox.textContent = err.data?.error || 'Could not reset password.';
       errBox.style.display = 'block';
