@@ -24,16 +24,15 @@
       <label>Select session</label>
       <select id="sessionSelect"></select>
 
-      <label style="margin-top:14px;">Or paste a session ID directly</label>
-      <input type="text" id="manualSessionId" placeholder="e.g. a11ac51e-03aa-4349-8316-924639e...">
-      <p class="helper">Use this if your lecturer or admin shared the ID directly and it isn't showing above yet.</p>
+      <label style="margin-top:14px;">Or paste a session ID</label>
+      <input type="text" id="manualSessionId" placeholder="Session ID from your lecturer">
 
       <div class="face-frame" id="frame" style="margin-top:16px;">
         <video id="video" autoplay playsinline></video>
       </div>
       <canvas id="canvas" width="220" height="220" style="display:none;"></canvas>
 
-      <p class="helper" id="locStatus">Requesting your location — this can take a few seconds for an accurate fix…</p>
+      <p class="helper" id="locStatus">Getting your location…</p>
 
       <button class="secondary" id="captureBtn">Capture face</button>
       <button class="primary" id="submitBtn" style="display:none;">Submit check-in</button>
@@ -42,7 +41,7 @@
     </div>
 
     <div class="card">
-      <div class="eyebrow">Your recent attendance</div>
+      <div class="eyebrow">Recent attendance</div>
       <table id="historyTable">
         <thead><tr><th>Course</th><th>Date</th><th>Status</th></tr></thead>
         <tbody></tbody>
@@ -64,13 +63,9 @@
   getGeolocation().then(loc => {
     coords = loc;
     const status = document.getElementById('locStatus');
-    if (!loc) {
-      status.textContent = 'Location unavailable — this check-in will be flagged for review.';
-      return;
-    }
-    const quality = loc.accuracy > 100 ? 'weak — try near a window or outdoors for a better fix'
-      : loc.accuracy > 30 ? 'fair' : 'strong';
-    status.textContent = `Location captured (±${Math.round(loc.accuracy)}m, ${quality}).`;
+    if (!loc) { status.textContent = 'Location unavailable — will be flagged for review.'; return; }
+    const quality = loc.accuracy > 100 ? 'weak — move near a window' : loc.accuracy > 30 ? 'fair' : 'strong';
+    status.textContent = `Location: ±${Math.round(loc.accuracy)}m (${quality})`;
   });
 
   const video = document.getElementById('video');
@@ -79,7 +74,7 @@
     video.srcObject = stream;
     cameraAvailable = true;
   }).catch(() => {
-    document.getElementById('frame').innerHTML = '<span style="padding:16px;text-align:center;">No camera — demo capture will be used.</span>';
+    document.getElementById('frame').innerHTML = '<span style="padding:16px;text-align:center;">No camera available</span>';
   });
 
   document.getElementById('captureBtn').addEventListener('click', () => {
@@ -97,16 +92,11 @@
     const select = document.getElementById('sessionSelect');
     try {
       const sessions = await api('/sessions/mine/open');
-      if (!sessions.length) {
-        select.innerHTML = '<option value="">No open sessions right now</option>';
-        return;
-      }
+      if (!sessions.length) { select.innerHTML = '<option value="">No open sessions</option>'; return; }
       select.innerHTML = sessions.map(s =>
         `<option value="${s.id}">${s.code} — ${s.title} (${new Date(s.start_time).toLocaleTimeString()})</option>`
       ).join('');
-    } catch (err) {
-      select.innerHTML = '<option value="">Could not load sessions</option>';
-    }
+    } catch (err) { select.innerHTML = '<option value="">Could not load sessions</option>'; }
   }
   loadSessions();
   document.getElementById('sessionSelect').addEventListener('focus', loadSessions);
@@ -119,10 +109,10 @@
     if (!sessionId) {
       resultBox.style.display = 'block';
       resultBox.className = 'error-box';
-      resultBox.textContent = 'Please select a session, or paste a session ID.';
+      resultBox.textContent = 'Select or paste a session ID.';
       return;
     }
-    const originalLabel = submitBtn.textContent;
+    const original = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="btn-spinner"></span> Verifying…';
     resultBox.style.display = 'none';
@@ -137,7 +127,7 @@
       resultBox.className = data.status === 'accepted' ? 'success-box' : 'error-box';
       let extra = '';
       if (data.distanceFromVenueMeters != null) {
-        extra = ` (${Math.round(data.distanceFromVenueMeters)}m from venue, GPS ±${Math.round(data.accuracyMeters || 0)}m)`;
+        extra = ` (${Math.round(data.distanceFromVenueMeters)}m away, ±${Math.round(data.accuracyMeters || 0)}m)`;
       }
       resultBox.innerHTML = `<span class="status-pill status-${data.status}">${data.status}</span> ${data.message}${extra}`;
       loadHistory();
@@ -147,22 +137,21 @@
       resultBox.textContent = err.message || err.data?.error || 'Check-in failed.';
     } finally {
       submitBtn.disabled = false;
-      submitBtn.textContent = originalLabel;
+      submitBtn.textContent = original;
     }
   });
 
   async function loadHistory() {
     try {
       const rows = await api('/checkins/me');
-      const tbody = document.querySelector('#historyTable tbody');
-      tbody.innerHTML = rows.map(r => `
+      document.querySelector('#historyTable tbody').innerHTML = rows.map(r => `
         <tr>
           <td>${r.code} — ${r.title}</td>
           <td>${new Date(r.start_time).toLocaleDateString()}</td>
           <td><span class="status-pill status-${r.status}">${r.status}</span></td>
         </tr>
       `).join('') || '<tr><td colspan="3" class="helper">No check-ins yet.</td></tr>';
-    } catch (e) { /* silent for demo */ }
+    } catch (e) {}
   }
   loadHistory();
 </script>
