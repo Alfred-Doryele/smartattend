@@ -1,10 +1,7 @@
 /**
- * Real facial-recognition capture using face-api.js (TensorFlow.js).
- * =====================================================================
- * Tuned for phone cameras: larger input size for better small-face
- * detection, a lower confidence threshold so imperfect lighting still
- * registers a face, and automatic retries instead of failing on the
- * first miss.
+ * Facial recognition capture using face-api.js (TensorFlow.js), tuned for
+ * real-world conditions — dim lighting, students standing further from
+ * the camera than a studio photo, and phones with mediocre cameras.
  */
 
 let modelsLoaded = false;
@@ -27,28 +24,40 @@ function waitForVideoReady(videoEl) {
   });
 }
 
+// Brightens/sharpens the frame before detection — helps in dim rooms
+// where the raw camera feed is too dark for reliable face detection.
+function enhancedFrame(videoEl) {
+  const canvas = document.createElement('canvas');
+  canvas.width = videoEl.videoWidth || 320;
+  canvas.height = videoEl.videoHeight || 240;
+  const ctx = canvas.getContext('2d');
+  ctx.filter = 'brightness(1.5) contrast(1.15)';
+  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
 /**
- * Captures a single descriptor from a live <video> element, retrying a
- * few times before giving up — a single frame can easily miss a face
- * due to motion blur or a brief bad angle.
+ * Captures a face descriptor, retrying with a brightened frame if the
+ * first attempts on the raw feed don't find a face.
  */
-async function captureFaceDescriptor(videoEl, attempts = 4) {
+async function captureFaceDescriptor(videoEl, attempts = 6) {
   await loadModels();
   await waitForVideoReady(videoEl);
 
   const options = new faceapi.TinyFaceDetectorOptions({
-    inputSize: 512,      // larger than the default 416 — better for smaller/farther faces
-    scoreThreshold: 0.35, // more lenient than the default 0.5 — tolerates imperfect lighting
+    inputSize: 608,        // larger than the default — better for smaller/farther faces
+    scoreThreshold: 0.2,   // lenient — tolerates dim lighting and imperfect angles
   });
 
   for (let i = 0; i < attempts; i++) {
+    const source = i < 2 ? videoEl : enhancedFrame(videoEl); // try raw first, then brightened
     const detection = await faceapi
-      .detectSingleFace(videoEl, options)
+      .detectSingleFace(source, options)
       .withFaceLandmarks()
       .withFaceDescriptor();
 
     if (detection) return Array.from(detection.descriptor);
-    await new Promise((r) => setTimeout(r, 350)); // brief pause before retrying
+    await new Promise((r) => setTimeout(r, 300));
   }
   return null;
 }
@@ -56,7 +65,7 @@ async function captureFaceDescriptor(videoEl, attempts = 4) {
 async function realDescriptorFromVideo(videoEl) {
   const descriptor = await captureFaceDescriptor(videoEl);
   if (!descriptor) {
-    throw new Error('No face detected after several attempts. Make sure your face is well-lit, centered, and fills most of the frame, then try again.');
+    throw new Error('No face detected. Move closer to the camera or turn on more light, then try again.');
   }
   return descriptor;
 }
