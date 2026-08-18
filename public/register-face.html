@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SmartAttend — Capture your face reference</title>
+<title>SmartAttend — Face setup</title>
 <link rel="stylesheet" href="/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 </head>
@@ -13,11 +13,11 @@
     <button class="logout" id="logoutBtn">Log out</button>
   </div>
 
-  <div class="shell" style="max-width:520px;">
+  <div class="shell" style="max-width:480px;">
     <div class="card">
       <div class="eyebrow">One-time setup</div>
-      <h2>Capture your facial reference</h2>
-      <p class="helper">This is what your check-ins will be compared against. Use good lighting and look straight at the camera.</p>
+      <h2>Capture your face</h2>
+      <p class="helper">Used to verify future check-ins. Face the light, fill the frame.</p>
 
       <div class="face-frame" id="frame">
         <video id="video" autoplay playsinline></video>
@@ -25,8 +25,8 @@
       <canvas id="canvas" width="220" height="220" style="display:none;"></canvas>
 
       <button class="secondary" id="captureBtn">Capture photo</button>
-      <button class="primary" id="saveBtn" style="display:none;">Save reference & continue</button>
-      <div class="success-box" id="successBox" style="display:none;">Saved. Redirecting to check-in...</div>
+      <button class="primary" id="saveBtn" style="display:none;">Save &amp; continue</button>
+      <div class="success-box" id="successBox" style="display:none;">Saved. Redirecting…</div>
       <div class="error-box" id="errorBox" style="display:none;"></div>
     </div>
   </div>
@@ -46,21 +46,13 @@
     video.srcObject = stream;
     cameraAvailable = true;
   }).catch(() => {
-    document.getElementById('frame').innerHTML = '<span style="padding:16px;text-align:center;">No camera detected. In demo mode, capture will still work with a placeholder image.</span>';
+    document.getElementById('frame').innerHTML = '<span style="padding:16px;text-align:center;">No camera detected</span>';
   });
 
   document.getElementById('captureBtn').addEventListener('click', () => {
     const ctx = canvas.getContext('2d');
-    if (video.srcObject) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    } else {
-      // Demo fallback when no camera is available in this environment
-      ctx.fillStyle = '#1D3461';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#fff';
-      ctx.font = '14px sans-serif';
-      ctx.fillText('Demo capture', 60, 110);
-    }
+    if (video.srcObject) ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    else { ctx.fillStyle = '#1D3461'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
     capturedDataUrl = canvas.toDataURL('image/png');
     document.getElementById('frame').innerHTML = '';
     document.getElementById('frame').appendChild(canvas);
@@ -73,25 +65,19 @@
     const saveBtn = document.getElementById('saveBtn');
     errBox.style.display = 'none';
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Processing face…';
+    saveBtn.textContent = 'Processing…';
     try {
-      let descriptor;
-      if (cameraAvailable) {
-        // Real face-api.js descriptor extraction from the live video frame
-        descriptor = await realDescriptorFromVideo(video);
-      } else {
-        // No camera in this environment — fall back to the demo descriptor
-        // so the rest of the pipeline can still be exercised end to end.
-        descriptor = demoDescriptorFromImageData(capturedDataUrl);
-      }
+      const descriptor = cameraAvailable
+        ? await realDescriptorFromVideo(video)
+        : demoDescriptorFromImageData(capturedDataUrl);
       await api('/auth/me/face', { method: 'PATCH', body: { faceDescriptor: descriptor } });
       document.getElementById('successBox').style.display = 'block';
       setTimeout(() => window.location.href = '/checkin.html', 1200);
     } catch (err) {
-      errBox.textContent = err.message || err.data?.error || 'Could not save reference.';
+      errBox.textContent = err.message || err.data?.error || 'Could not save.';
       errBox.style.display = 'block';
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save reference & continue';
+      saveBtn.textContent = 'Save & continue';
     }
   });
 </script>
