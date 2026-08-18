@@ -1,28 +1,20 @@
 /**
- * Face matching service — FR-3 (Facial-Recognition Check-In)
- * =============================================================
- * STATUS: Real facial recognition is now integrated via face-api.js
- * (TensorFlow.js), running client-side in the browser. See
- * public/js/faceRecognition.js and public/models/README.md.
+ * Face matching service — compares a live capture against the student's
+ * stored reference using Euclidean distance between face-api.js descriptors.
  *
- * The frontend captures a 128-length face descriptor from a live camera
- * frame using face-api.js and POSTs it here unchanged. When no camera is
- * available (e.g. a headless test environment), the frontend falls back
- * to a deterministic demo descriptor so the pipeline stays testable.
- *
- * MATCH ALGORITHM:
- *   Euclidean distance between the live descriptor and the student's
- *   stored reference descriptor. Lower distance = closer match. 0.6 is
- *   the threshold face-api.js's own documentation recommends for its
- *   128-dimension descriptors, which is why it was chosen as the default
- *   here even before the real model was wired in.
+ * MATCH_THRESHOLD is set slightly above face-api.js's own baseline
+ * recommendation (0.6) to better tolerate real-world variation — dim
+ * rooms, different distances from the camera, minor angle changes —
+ * without meaningfully raising the risk of matching a different person.
+ * If false accepts become a concern in testing, lower this back toward
+ * 0.6; if too many genuine students still get rejected, it can move
+ * slightly higher still.
  */
 
-const MATCH_THRESHOLD = 0.6; // face-api.js's documented recommended threshold
+const MATCH_THRESHOLD = 0.62;
 
 function euclideanDistance(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
-    // Descriptor length mismatch — treat as no match rather than crashing
     return Infinity;
   }
   let sum = 0;
@@ -32,11 +24,6 @@ function euclideanDistance(a, b) {
   return Math.sqrt(sum);
 }
 
-/**
- * @param {number[]} liveDescriptor - descriptor captured at check-in
- * @param {number[]} storedDescriptor - descriptor captured at registration
- * @returns {{ score: number, passed: boolean }}
- */
 function matchFace(liveDescriptor, storedDescriptor) {
   const score = euclideanDistance(liveDescriptor, storedDescriptor);
   return {
