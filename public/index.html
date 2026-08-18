@@ -9,10 +9,10 @@
 <body>
   <div class="topbar">
     <div class="brand"><span class="dot"></span> SmartAttend</div>
-    <div class="who">Facial-recognition attendance, verified by location</div>
+    <div class="who">Attendance, verified</div>
   </div>
 
-  <div class="shell" style="max-width:460px;">
+  <div class="shell" style="max-width:440px;">
     <div class="card">
       <div class="eyebrow" id="formEyebrow">Sign in</div>
       <h2 id="formTitle">Welcome back</h2>
@@ -30,9 +30,8 @@
         <a href="#" id="showForgot">Forgot password?</a>
       </p>
       <p class="helper" style="margin-top:6px;">
-        Are you a student or lecturer? Your administrator creates your account and gives you your login details directly — you don't need to register.
-        &nbsp;·&nbsp;
-        <a href="#" id="showRegister">Registering as an Administrator?</a>
+        Students &amp; lecturers: your administrator sends you login details directly.
+        &nbsp;<a href="#" id="showRegister">Register as an Administrator</a>
       </p>
     </div>
 
@@ -51,7 +50,7 @@
         <div class="success-box" id="forgotDevNote" style="margin-bottom:14px;"></div>
         <form id="forgotConfirmForm">
           <label>Reset code</label>
-          <input type="text" id="resetToken" required placeholder="Paste the code shown above">
+          <input type="text" id="resetToken" required placeholder="Code from your email">
           <label>New password</label>
           <input type="password" id="newPassword" required minlength="6" placeholder="At least 6 characters">
           <button class="primary" type="submit">Update password</button>
@@ -63,7 +62,6 @@
     <div class="card" id="registerCard" style="display:none;">
       <div class="eyebrow">Register</div>
       <h2>Create an Administrator account</h2>
-      <p class="helper">Only administrators register through this form. As an admin, you'll be able to create accounts for your own students and lecturers and hand them their login details directly — see "Manage users" after you sign in.</p>
       <form id="registerForm">
         <label>Full name</label>
         <input type="text" id="regName" required>
@@ -71,7 +69,7 @@
         <input type="email" id="regEmail" required>
         <label>Password</label>
         <input type="password" id="regPassword" required minlength="6">
-        <button class="primary" type="submit">Create administrator account</button>
+        <button class="primary" type="submit">Create account</button>
         <div class="error-box" id="registerError" style="display:none;"></div>
       </form>
     </div>
@@ -137,12 +135,9 @@
     try {
       const data = await api('/auth/password-reset/request', { method: 'POST', body: { email } });
       document.getElementById('forgotCodeBox').style.display = 'block';
-      const note = document.getElementById('forgotDevNote');
-      if (data.devToken) {
-        note.textContent = `Demo mode (no email service configured): your reset code is ${data.devToken}`;
-      } else {
-        note.textContent = 'If that email is registered, a reset code has been generated. Check with your administrator.';
-      }
+      document.getElementById('forgotDevNote').textContent = data.devToken
+        ? `Email not configured — your reset code is ${data.devToken}`
+        : data.message;
     } catch (err) {
       errBox.textContent = err.data?.error || 'Could not process request.';
       errBox.style.display = 'block';
@@ -157,7 +152,7 @@
     errBox.style.display = 'none';
     try {
       await api('/auth/password-reset/confirm', { method: 'POST', body: { token, newPassword } });
-      alert('Password updated. You can now sign in with your new password.');
+      alert('Password updated. Sign in with your new password.');
       document.getElementById('forgotCard').style.display = 'none';
       document.getElementById('loginEmail').value = document.getElementById('forgotEmail').value;
     } catch (err) {
