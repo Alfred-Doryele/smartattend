@@ -55,6 +55,7 @@
           <div id="liveLocationBlock">
             <button class="secondary" type="button" id="grabLocation">Capture my location</button>
             <span class="helper" id="locResult"></span>
+            <div class="error-box" id="locWarning" style="display:none;"></div>
           </div>
 
           <label>Duration (minutes)</label>
@@ -160,6 +161,13 @@
     capturedLoc = loc;
     const quality = loc.accuracy > 100 ? '⚠ weak' : loc.accuracy > 30 ? 'fair' : 'strong';
     document.getElementById('locResult').textContent = `±${Math.round(loc.accuracy)}m (${quality})`;
+    const warnBox = document.getElementById('locWarning');
+    if (loc.accuracy > 150) {
+      warnBox.style.display = 'block';
+      warnBox.textContent = `This device's location is only accurate to ±${Math.round(loc.accuracy)}m — laptops usually have no real GPS chip and estimate position from WiFi, which can be very inaccurate. For a reliable check-in radius, capture this location from a phone instead (Admin → Venues), then select that venue above rather than using live capture.`;
+    } else {
+      warnBox.style.display = 'none';
+    }
   });
 
   document.getElementById('sessionForm').addEventListener('submit', async (e) => {
