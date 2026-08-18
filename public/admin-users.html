@@ -19,8 +19,8 @@
   <div class="shell">
     <div class="card">
       <div class="eyebrow">Admin</div>
-      <h2>Create a student or lecturer account</h2>
-      <p class="helper">This creates their login directly — they never register themselves. A one-time temporary password is generated below; share it with them so they can log in and (if a student) capture their facial reference.</p>
+      <h2>Create an account</h2>
+      <p class="helper">Their login details are emailed automatically. You can also view or copy the password below anytime.</p>
 
       <form id="createAccountForm">
         <label>Full name</label>
@@ -30,7 +30,7 @@
           <option value="student">Student</option>
           <option value="lecturer">Lecturer</option>
         </select>
-        <label>Index / Staff number <span style="font-weight:400;">(students)</span></label>
+        <label>Index / Staff ID</label>
         <input type="text" id="newIndexNumber" placeholder="e.g. UENR/CE/21/001">
         <label>Email</label>
         <input type="email" id="newEmail" required>
@@ -43,15 +43,14 @@
 
     <div class="card">
       <div class="eyebrow">Your users</div>
-      <h2>Students &amp; lecturers you've created</h2>
-      <label>Filter by role</label>
+      <h2>Students &amp; lecturers</h2>
       <select id="roleFilter">
         <option value="">All</option>
         <option value="student">Student</option>
         <option value="lecturer">Lecturer</option>
       </select>
       <table style="margin-top:16px;">
-        <thead><tr><th>Name</th><th>Index/Staff No.</th><th>Email</th><th>Role</th><th>Created</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>ID</th><th>Email</th><th>Role</th><th>Password</th><th></th></tr></thead>
         <tbody id="usersBody"></tbody>
       </table>
     </div>
@@ -79,8 +78,7 @@
     try {
       const data = await api('/auth/create-account', { method: 'POST', body: { fullName, role, indexNumber, email } });
       successBox.style.display = 'block';
-      successBox.innerHTML = `Account created for <strong>${data.fullName}</strong> (${data.email}).<br>
-        Temporary password: <strong>${data.temporaryPassword}</strong><br>
+      successBox.innerHTML = `<strong>${data.fullName}</strong> created. Password: <strong>${data.temporaryPassword}</strong><br>
         <span style="font-size:.82rem;">${data.note}</span>`;
       document.getElementById('createAccountForm').reset();
       loadUsers();
@@ -98,26 +96,36 @@
   function render() {
     const filter = document.getElementById('roleFilter').value;
     const rows = filter ? allUsers.filter(u => u.role === filter) : allUsers;
-    document.getElementById('usersBody').innerHTML = rows.map(u => `
+    document.getElementById('usersBody').innerHTML = rows.map((u, i) => `
       <tr>
         <td>${u.full_name}</td>
         <td>${u.index_number || '—'}</td>
         <td>${u.email}</td>
         <td><span class="status-pill status-pending">${u.role}</span></td>
-        <td>${new Date(u.created_at).toLocaleDateString()}</td>
-        <td><button class="secondary" onclick="deactivate('${u.id}')">Deactivate</button></td>
+        <td>
+          ${u.temp_password
+            ? `<span id="pw-${i}" style="font-family:monospace;">••••••••</span>
+               <button class="secondary" style="padding:3px 8px; font-size:.75rem;" onclick="togglePw(${i}, '${u.temp_password}')">Show</button>`
+            : '<span class="helper">changed by user</span>'}
+        </td>
+        <td><button class="secondary" onclick="deactivate('${u.id}')">Remove</button></td>
       </tr>
     `).join('') || '<tr><td colspan="6" class="helper">No users created yet.</td></tr>';
+  }
+
+  function togglePw(i, pw) {
+    const el = document.getElementById(`pw-${i}`);
+    el.textContent = el.textContent === pw ? '••••••••' : pw;
   }
 
   document.getElementById('roleFilter').addEventListener('change', render);
 
   async function deactivate(id) {
-    if (!confirm('Remove this user account? This cannot be undone.')) return;
+    if (!confirm('Remove this account? This cannot be undone.')) return;
     try {
       await api(`/users/${id}/deactivate`, { method: 'PATCH' });
       loadUsers();
-    } catch (err) { alert(err.data?.error || 'Could not deactivate user.'); }
+    } catch (err) { alert(err.data?.error || 'Could not remove user.'); }
   }
 
   loadUsers();
